@@ -2,9 +2,11 @@
 
 **LSP-6 KeyManager Guardian Management UI for Universal Profiles**
 
-A secure web interface for managing Universal Profile controllers on LUKSO. Runs exclusively inside **universaleverything.io Grid**.
+🌐 **Live Demo**: [universaleverything.io Grid](https://universaleverything.io/0xf289b5b3d1d7f787afd2328a9cdb38f5821e6323?grid=main)
 
-🌐 **Access**: [universaleverything.io](https://universaleverything.io) → Connect your UP → Open this app
+📦 **Source**: [Vercel Deployment](https://up-controller-manager.vercel.app)
+
+A secure web interface for managing Universal Profile controllers on LUKSO. This is a self-custody application that connects and runs exclusively inside **universaleverything.io Grid**.
 
 ---
 
