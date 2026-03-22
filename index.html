@@ -1,0 +1,1992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🆙 Controller Manager</title>
+  <style>
+    :root {
+      /* Backgrounds — near-black, neutral (no blue-purple cast) */
+      --bg:        #09090B;
+      --surface:   #0F0F12;
+      --card:      #141418;
+      --card2:     #1A1A1F;
+
+      /* Borders */
+      --border:    #1E1E26;
+      --border2:   #28282F;
+      --border3:   #343440;
+
+      /* Primary: amber-gold — authoritative, not playful */
+      --gold:      #C8900E;
+      --gold-lt:   #E5A820;
+      --gold-bg:   rgba(200,144,14,0.09);
+      --gold-ring: rgba(200,144,14,0.30);
+
+      /* Secondary: slate blue — technical, trustworthy */
+      --slate:     #5B82D0;
+      --slate-bg:  rgba(91,130,208,0.09);
+      --slate-ring:rgba(91,130,208,0.30);
+
+      /* Semantic */
+      --green:     #28A870;
+      --green-bg:  rgba(40,168,112,0.09);
+      --warn:      #C47018;
+      --warn-bg:   rgba(196,112,24,0.09);
+      --red:       #C03838;
+      --red-lt:    #D44040;
+      --red-bg:    rgba(192,56,56,0.09);
+
+      /* Typography */
+      --txt:       #EEEEEE;
+      --sub:       #A8A8BC;
+      --muted:     #68687E;
+      --muted2:    #303040;
+
+      /* Fonts */
+      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      --mono: 'ui-monospace', 'SF Mono', 'Menlo', 'Consolas', 'Liberation Mono', monospace;
+
+      /* Shape */
+      --r:  6px;
+      --r2: 10px;
+    }
+
+    * { box-sizing:border-box; margin:0; padding:0; font-variant-emoji:emoji; }
+    html { overflow-x:hidden; scrollbar-gutter:stable; }
+    body {
+      background:var(--bg);
+      color:var(--txt);
+      font-family:var(--sans);
+      font-size:14px;
+      line-height:1.6;
+      min-height:100vh;
+      overflow-x:hidden;
+    }
+    .app { width:100%; max-width:780px; margin:0 auto; padding:20px 16px 48px; }
+
+    /* ── HEADER ─────────────────────────────────────────────────────── */
+    .hdr {
+      display:flex; align-items:center; gap:12px;
+      padding-bottom:16px;
+      border-bottom:1px solid var(--border);
+      margin-bottom:22px;
+    }
+    .hdr-mark {
+      width:32px; height:32px; flex-shrink:0;
+      display:flex; align-items:center; justify-content:center;
+      border:1px solid var(--gold-ring);
+      border-radius:var(--r);
+      background:var(--gold-bg);
+      color:var(--gold-lt);
+      font-size:16px;
+    }
+    .hdr-title { font-size:15px; font-weight:700; letter-spacing:.01em; color:var(--txt); }
+    .hdr-sub   { font-size:11px; color:var(--muted); font-family:var(--mono); margin-top:1px; letter-spacing:.04em; }
+    .spacer { flex:1; }
+    .cpill {
+      font-family:var(--mono); font-size:10px; font-weight:500;
+      padding:4px 10px; border-radius:20px;
+      border:1px solid var(--border3); color:var(--muted);
+      letter-spacing:.06em; transition:all .2s;
+    }
+    .cpill.ok { border-color:var(--green); color:var(--green); }
+
+    /* ── WAITING ─────────────────────────────────────────────────────── */
+    .wait-box {
+      padding:36px 24px; border-radius:var(--r2);
+      border:1px solid var(--border2);
+      text-align:center; margin-bottom:20px;
+      background:var(--surface);
+    }
+    .wait-box .w-title { font-size:16px; font-weight:600; margin-bottom:8px; }
+    .wait-box .w-desc  { font-size:13px; color:var(--sub); line-height:1.75; }
+    .pulse {
+      display:inline-block; width:8px; height:8px; border-radius:50%;
+      background:var(--muted2); animation:pulse 2s ease-in-out infinite;
+      vertical-align:middle; margin-bottom:14px;
+    }
+    .pulse.green { background:var(--green); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+    /* ── CARD ────────────────────────────────────────────────────────── */
+    .card {
+      background:var(--card);
+      border:1px solid var(--border2);
+      border-radius:var(--r2);
+      padding:20px;
+      margin-bottom:12px;
+      min-width:0;
+      /* overflow:hidden removed — it clips absolutely-positioned tooltips.
+         Horizontal scroll prevention is handled by html { overflow-x:hidden } */
+    }
+    /* Step number accent on left edge */
+    .card[data-step] {
+      border-left:2px solid var(--border3);
+    }
+    .card[data-step="active"] {
+      border-left-color:var(--gold);
+    }
+    .card-hdr { display:flex; align-items:flex-start; gap:10px; margin-bottom:16px; }
+    .card-icon { font-size:17px; flex-shrink:0; margin-top:2px; }
+    .card-title { font-size:14px; font-weight:700; letter-spacing:.01em; }
+    .card-sub   { font-size:12px; color:var(--sub); margin-top:3px; }
+
+    /* ── PROFILE BLOCK ───────────────────────────────────────────────── */
+    .profile-block {
+      display:flex; align-items:center; gap:12px;
+      padding:12px 14px; border-radius:var(--r);
+      border:1px solid var(--border2);
+      background:var(--surface);
+      margin-bottom:10px; min-width:0;
+    }
+    .profile-block.target   {
+      border-color:var(--gold-ring);
+      background:var(--gold-bg);
+    }
+    .profile-block.guardian {
+      border-color:var(--slate-ring);
+      background:var(--slate-bg);
+    }
+    .pb-avatar {
+      width:44px; height:44px; border-radius:50%; flex-shrink:0;
+      background:var(--border2); overflow:hidden;
+      display:flex; align-items:center; justify-content:center;
+      font-size:20px;
+      border:1.5px solid var(--border3);
+    }
+    .pb-avatar.target   { border-color:var(--gold-ring); }
+    .pb-avatar.guardian { border-color:var(--slate-ring); }
+    .pb-avatar img { width:100%; height:100%; object-fit:cover; display:block; }
+    .pb-info { flex:1; min-width:0; }
+    .pb-label {
+      font-size:10px; font-weight:700;
+      letter-spacing:.09em; text-transform:uppercase;
+      margin-bottom:3px; font-family:var(--mono);
+    }
+    .pb-label.target   { color:var(--gold-lt); }
+    .pb-label.guardian { color:var(--slate); }
+    .pb-name  { font-size:14px; font-weight:600; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .pb-name.unnamed { color:var(--muted); font-style:italic; font-weight:400; }
+    .pb-addr  { font-family:var(--mono); font-size:10px; color:var(--muted); word-break:break-all; }
+
+    /* ── INFO ROWS ───────────────────────────────────────────────────── */
+    .irow {
+      display:flex; justify-content:space-between; align-items:flex-start;
+      padding:8px 0; border-bottom:1px solid var(--border); gap:8px;
+    }
+    .irow:last-child { border:none; padding-bottom:0; }
+    .irow-k { color:var(--sub); font-size:12px; flex-shrink:1; min-width:0; }
+    .irow-v { font-family:var(--mono); font-size:11px; text-align:right; word-break:break-all; overflow-wrap:anywhere; color:var(--txt); min-width:0; }
+
+    /* ── CONTROLLER TABLE ────────────────────────────────────────────── */
+    /* table-layout:fixed + <colgroup> in JS HTML: <col> width takes absolute priority,
+       th text cannot inflate columns regardless of content length */
+    .ctrl-table { width:100%; border-collapse:collapse; font-size:12px; margin-top:10px; table-layout:fixed; }
+    .ctrl-table col.col-idx    { width:32px; }
+    .ctrl-table col.col-type   { width:36px; }   /* wider + right padding gives breathing room before address */
+    .ctrl-table col.col-perm   { width:56px; }
+    .ctrl-table col.col-action { width:86px; }
+    .ctrl-table th {
+      font-family:var(--mono); font-size:10px; font-weight:600;
+      letter-spacing:.06em; color:var(--muted); text-transform:uppercase;
+      text-align:left; padding:5px 4px 5px 0; border-bottom:1px solid var(--border2);
+      overflow:hidden;
+    }
+    .ctrl-table td { padding:7px 4px 7px 0; border-bottom:1px solid var(--border); vertical-align:middle; overflow:hidden; }
+    .ctrl-table td:nth-child(2) { padding-right:8px; }  /* TYPE col: extra right gap before address */
+    .ctrl-table tr:last-child td { border:none; }
+    .ctrl-table .col-action { text-align:right; }
+    .ctrl-addr { font-family:var(--mono); font-size:10px; word-break:break-all; overflow-wrap:anywhere; color:var(--sub); }
+    .ctrl-perm { font-family:var(--mono); font-size:10px; color:var(--muted); white-space:nowrap; }
+    .ctrl-type { font-size:13px; line-height:1; cursor:default; }
+
+    .badge {
+      display:inline-block; font-family:var(--mono); font-size:9px; font-weight:500;
+      padding:2px 6px; border-radius:3px; white-space:nowrap;
+      border:1px solid var(--border3); background:var(--surface); color:var(--muted);
+      letter-spacing:.04em;
+    }
+    .badge.km       { border-color:rgba(200,144,14,.5); color:var(--gold-lt);  background:var(--gold-bg); }
+    .badge.admin    { border-color:rgba(196,112,24,.5); color:var(--warn);     background:var(--warn-bg); }
+    .badge.recovery { border-color:rgba(40,168,112,.5); color:var(--green);    background:var(--green-bg); }
+
+    .ctrl-table tr.is-target td { background:rgba(91,130,208,0.04); }
+    .ctrl-table tr.is-target td:first-child { border-left:2px solid var(--slate); padding-left:4px; }
+
+    /* ── DELETE BUTTON ───────────────────────────────────────────────── */
+    .del-btn, .del-btn-off {
+      display:inline-flex; align-items:center; justify-content:center;
+      width:26px; height:26px; font-size:13px; line-height:1;
+      border-radius:var(--r); border:1px solid transparent; flex-shrink:0;
+    }
+    .del-btn { background:none; cursor:pointer; color:inherit; opacity:.45; transition:opacity .15s,background .15s,border-color .15s; }
+    .del-btn:hover { opacity:1; background:var(--red-bg); border-color:rgba(192,56,56,.4); }
+    .del-btn-off { background:none; cursor:not-allowed; opacity:.2; color:var(--muted); }
+
+    /* ── DELETE MODAL ────────────────────────────────────────────────── */
+    .del-modal-bg {
+      position:fixed; inset:0; background:rgba(0,0,0,.72); z-index:1000;
+      display:flex; align-items:center; justify-content:center; padding:16px;
+      backdrop-filter:blur(2px);
+    }
+    .del-modal {
+      background:var(--card2); border:1px solid var(--border3);
+      border-radius:var(--r2); padding:22px; max-width:480px; width:100%;
+      box-shadow:0 24px 64px rgba(0,0,0,.6);
+    }
+    .del-modal-title { font-size:14px; font-weight:700; margin-bottom:14px; color:var(--red-lt); letter-spacing:.01em; }
+    .del-modal-addr  {
+      font-family:var(--mono); font-size:10px; color:var(--sub);
+      word-break:break-all; padding:10px 12px;
+      background:var(--surface); border:1px solid var(--border2);
+      border-radius:var(--r); margin-bottom:12px; line-height:1.8;
+    }
+    .del-modal-info  { font-size:12px; color:var(--sub); line-height:1.75; margin-bottom:12px; }
+    .del-modal-warn  { font-size:12px; line-height:1.65; }
+
+    /* INPUT */
+    .inp-row { display:flex; gap:8px; min-width:0; }
+    input[type=text] {
+      flex:1; width:100%; min-width:0;
+      background:var(--surface); border:1px solid var(--border3);
+      color:var(--txt); font-family:var(--mono); font-size:12px;
+      padding:10px 13px; border-radius:var(--r); outline:none;
+      transition:border-color .15s, box-shadow .15s;
+    }
+    input[type=text]:focus  { border-color:var(--gold); box-shadow:0 0 0 2px var(--gold-bg); }
+    input[type=text].valid  { border-color:var(--green); box-shadow:0 0 0 2px var(--green-bg); }
+    input[type=text].bad    { border-color:var(--red); box-shadow:0 0 0 2px var(--red-bg); }
+    input[type=text]::placeholder { color:var(--muted2); }
+
+    /* ── BUTTONS ─────────────────────────────────────────────────────── */
+    .btn {
+      font-family:var(--mono); font-size:12px; font-weight:600;
+      padding:10px 18px; border-radius:var(--r); border:1px solid transparent;
+      cursor:pointer; transition:opacity .15s,transform .1s,box-shadow .15s;
+      letter-spacing:.05em; white-space:nowrap;
+    }
+    .btn:active:not(:disabled) { transform:scale(.97); }
+    .btn:disabled { opacity:.25; cursor:not-allowed; }
+    .btn-primary {
+      background:var(--gold); color:#0A0800;
+      border-color:var(--gold);
+    }
+    .btn-primary:hover:not(:disabled) { background:var(--gold-lt); border-color:var(--gold-lt); }
+    .btn-ghost {
+      background:transparent; color:var(--sub);
+      border-color:var(--border3);
+    }
+    .btn-ghost:hover:not(:disabled) { background:var(--card2); color:var(--txt); border-color:var(--border3); }
+    .btn-sm { padding:7px 12px; font-size:11px; }
+
+    /* ── PRESETS ─────────────────────────────────────────────────────── */
+    .presets { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    @media(max-width:360px){ .presets { grid-template-columns:1fr; } }
+    .preset {
+      position:relative;
+      padding:13px; border-radius:var(--r); cursor:pointer;
+      border:1px solid var(--border2); background:var(--surface);
+      transition:border-color .15s,background .15s;
+    }
+    .preset:hover { border-color:var(--border3); background:var(--card2); }
+    .preset.sel   { border-color:var(--gold-ring); background:var(--gold-bg); }
+    .preset-name { font-size:12px; font-weight:700; font-family:var(--mono); margin-bottom:4px; letter-spacing:.03em; }
+    .preset.sel .preset-name { color:var(--gold-lt); }
+    .preset-desc { font-size:11px; color:var(--muted); line-height:1.45; }
+    .preset-warn { font-size:11px; color:var(--warn); margin-top:5px; line-height:1.4; font-weight:600; }
+    /* Preset hover tooltip */
+    .preset-tip {
+      visibility:hidden; opacity:0; pointer-events:none;
+      position:absolute; z-index:1000; top:calc(100% + 6px); left:0;
+      width:260px; background:var(--card2); border:1px solid var(--border3);
+      border-radius:var(--r); padding:10px 12px; font-size:11px;
+      line-height:1.7; color:var(--txt); box-shadow:0 8px 32px rgba(0,0,0,.6);
+      transition:opacity .15s; white-space:normal; text-align:left;
+    }
+    .preset:hover .preset-tip { visibility:visible; opacity:1; }
+    .preset:nth-child(even) .preset-tip { left:auto; right:0; }
+
+    /* ── PERMISSION BITS ─────────────────────────────────────────────── */
+    .perm-bits { display:flex; flex-wrap:wrap; gap:5px; }
+    .pb-wrap { position:relative; display:inline-block; }
+    .pb {
+      font-family:var(--mono); font-size:10px; padding:3px 8px; border-radius:3px;
+      background:var(--surface); color:var(--muted);
+      border:1px solid var(--border2); user-select:none;
+      transition:all .12s; cursor:pointer; letter-spacing:.03em;
+    }
+    .pb:hover  { border-color:var(--border3); color:var(--sub); }
+    .pb:active { transform:scale(.95); }
+    .pb.on     { background:var(--gold-bg); color:var(--gold-lt); border-color:var(--gold-ring); }
+    .pb.danger { background:var(--red-bg);  color:var(--red-lt); border-color:rgba(192,56,56,.4); }
+
+    /* Permission tooltip */
+    .pb-wrap .perm-tip {
+      visibility:hidden; opacity:0; pointer-events:none;
+      position:absolute; z-index:999; bottom:calc(100% + 7px);
+      left:0; right:auto;
+      width:270px; background:var(--card2); border:1px solid var(--border3);
+      border-radius:var(--r); padding:10px 13px; font-family:var(--sans); font-size:11px;
+      line-height:1.6; color:var(--txt); box-shadow:0 8px 32px rgba(0,0,0,.6);
+      transition:opacity .15s; white-space:normal; text-align:left;
+    }
+    .pb-wrap.tip-flip .perm-tip { left:auto; right:0; }
+    .pb-wrap:hover .perm-tip { visibility:visible; opacity:1; }
+    .perm-tip-risk { font-size:10px; font-weight:600; margin-bottom:4px; font-family:var(--mono); letter-spacing:.05em; }
+    .perm-tip-name { font-size:11px; font-weight:700; margin-bottom:5px; color:var(--txt); }
+    .perm-tip-desc { font-size:11px; color:var(--sub); line-height:1.55; }
+
+    /* ── BITMAP EDIT MODE ────────────────────────────────────────────── */
+    .bitmap-row { display:flex; align-items:center; gap:6px; margin-top:10px; min-width:0; }
+    .bitmap-label { font-size:11px; color:var(--muted); white-space:nowrap; flex-shrink:0; }
+    /* Display mode: read-only hex value */
+    .bitmap-display {
+      flex:1; min-width:0;
+      font-family:var(--mono); font-size:11px; color:var(--txt);
+      background:var(--surface); border:1px solid var(--border2);
+      border-radius:var(--r); padding:8px 10px;
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+      cursor:default;
+    }
+    .bitmap-edit-btn {
+      flex-shrink:0; background:none; border:1px solid var(--border3);
+      border-radius:var(--r); padding:6px 8px; cursor:pointer;
+      font-size:12px; color:var(--muted); line-height:1;
+      transition:color .15s, border-color .15s;
+    }
+    .bitmap-edit-btn:hover { color:var(--txt); border-color:var(--slate); }
+    /* Edit mode: active input + confirm/cancel buttons */
+    .bitmap-input-row { display:flex; align-items:center; gap:4px; flex:1; min-width:0; }
+    #permHexInput {
+      flex:1; min-width:0;
+      background:var(--surface); border:1px solid var(--slate);
+      box-shadow:0 0 0 2px var(--slate-bg);
+      color:var(--txt); font-family:var(--mono); font-size:11px;
+      padding:8px 10px; border-radius:var(--r); outline:none;
+    }
+    #permHexInput.bad   { border-color:var(--red); box-shadow:0 0 0 2px var(--red-bg); }
+    .bitmap-confirm-btn, .bitmap-cancel-btn {
+      flex-shrink:0; padding:6px 8px; border-radius:var(--r);
+      border:1px solid transparent; cursor:pointer; font-size:12px; line-height:1;
+    }
+    .bitmap-confirm-btn { background:var(--green-bg); color:var(--green); border-color:rgba(40,168,112,.4); }
+    .bitmap-confirm-btn:hover { background:rgba(40,168,112,.18); }
+    .bitmap-cancel-btn  { background:var(--surface); color:var(--muted); border-color:var(--border3); }
+    .bitmap-cancel-btn:hover  { color:var(--txt); }
+    .alert {
+      padding:11px 14px; border-radius:var(--r);
+      font-size:12px; line-height:1.7; margin-top:10px;
+    }
+    .alert.info    { background:var(--slate-bg);  border:1px solid var(--slate-ring);          color:var(--slate); }
+    .alert.success { background:var(--green-bg);  border:1px solid rgba(40,168,112,.3);        color:var(--green); }
+    .alert.warning { background:var(--warn-bg);   border:1px solid rgba(196,112,24,.3);        color:var(--warn); }
+    .alert.error   { background:var(--red-bg);    border:1px solid rgba(192,56,56,.3);         color:var(--red-lt); }
+    .alert.note    { background:var(--surface);   border:1px solid var(--border2);             color:var(--sub); }
+    .alert code    {
+      font-family:var(--mono); font-size:10px;
+      background:rgba(255,255,255,.06); padding:1px 5px; border-radius:3px; color:var(--txt);
+      word-break:break-all; overflow-wrap:anywhere;
+    }
+
+    /* ── CALLDATA ────────────────────────────────────────────────────── */
+    .cdata {
+      background:var(--surface); border:1px solid var(--border2);
+      border-radius:var(--r); padding:12px;
+      font-family:var(--mono); font-size:10px; color:var(--muted);
+      word-break:break-all; line-height:2; max-height:160px; overflow-y:auto; overflow-x:auto;
+    }
+    .cdata::-webkit-scrollbar { width:4px; }
+    .cdata::-webkit-scrollbar-track { background:transparent; }
+    .cdata::-webkit-scrollbar-thumb { background:var(--border3); border-radius:2px; }
+    .ck { color:var(--slate); }
+    .cv { color:var(--green); }
+
+    /* ── MISC ────────────────────────────────────────────────────────── */
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .spin {
+      display:inline-block; width:10px; height:10px;
+      border:1.5px solid var(--border3); border-top-color:var(--gold);
+      border-radius:50%; animation:spin .7s linear infinite;
+      vertical-align:middle; margin-right:6px;
+    }
+    a.tx {
+      color:var(--slate); text-decoration:none;
+      font-family:var(--mono); font-size:11px; word-break:break-all;
+    }
+    a.tx:hover { color:var(--txt); text-decoration:underline; }
+    hr.div { border:none; border-top:1px solid var(--border); margin:16px 0; }
+    /* ctrlTableWrap: min-height prevents height collapsing to 0 during re-render */
+    #ctrlTableWrap { min-height:36px; }
+
+    /* Card reveal: opacity-only fade avoids layout shift from translateY */
+    .card-in { animation:cardFadeIn .15s ease both; }
+    @keyframes cardFadeIn { from { opacity:0; } to { opacity:1; } }
+
+    [hidden] { display:none !important; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <div class="hdr">
+    <div class="hdr-mark">🆙</div>
+    <div>
+      <div class="hdr-title">Controller Manager</div>
+      <div class="hdr-sub">LSP6 · Universal Profile key management</div>
+    </div>
+    <div class="spacer"></div>
+    <div class="cpill" id="cpill">LUKSO</div>
+  </div>
+
+  <!-- WAITING -->
+  <div class="wait-box" id="waitBox">
+    <div style="font-size:26px;margin-bottom:10px;"><span class="pulse"></span></div>
+    <div class="w-title">Waiting for connection</div>
+    <div class="w-desc">
+      Open inside <strong>universaleverything.io</strong> Grid,<br>
+      or with the <strong>UP Browser Extension</strong> in standalone mode.<br>
+      <span style="font-size:12px;color:var(--muted2);display:block;margin-top:6px;">Connection is injected automatically — no button needed.</span>
+    </div>
+  </div>
+
+  <!-- CARD 1: THIS PROFILE -->
+  <div class="card" id="card1" hidden>
+    <div class="card-hdr">
+      <span class="card-icon">🔐</span>
+      <div style="flex:1;">
+        <div class="card-title">This Profile — adding a backup controller</div>
+        <div class="card-sub">The Universal Profile currently connected</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="resetToControllerList()">Reset</button>
+    </div>
+    <div class="profile-block target">
+      <div class="pb-avatar target" id="targetAvatar">👤</div>
+      <div class="pb-info">
+        <div class="pb-label target" style="display:flex;align-items:center;gap:6px;">
+          This Profile
+          <span id="targetLinks" style="display:none;gap:4px;align-items:center;">
+            <a id="targetBlockscoutLink" href="#" target="_blank" title="View on Blockscout Explorer" style="color:var(--muted);text-decoration:none;font-size:13px;line-height:1;" onmouseover="this.style.color='var(--slate)'" onmouseout="this.style.color='var(--muted)'">🔍</a>
+            <a id="targetInspectLink" href="#" target="_blank" title="Inspect LSP data on erc725-inspect" style="color:var(--muted);text-decoration:none;font-size:13px;line-height:1;" onmouseover="this.style.color='var(--slate)'" onmouseout="this.style.color='var(--muted)'">🔬</a>
+          </span>
+        </div>
+        <div class="pb-name unnamed" id="targetName">Loading…</div>
+        <div class="pb-addr" id="up1Addr">—</div>
+      </div>
+    </div>
+    <div class="irow">
+      <span class="irow-k">Key Manager</span>
+      <span class="irow-v" id="up1KM">—</span>
+    </div>
+    <div class="irow" style="border:none;padding-bottom:0;">
+      <span class="irow-k">Registered controllers</span>
+      <span class="irow-v" id="ctrlCount" style="color:var(--muted);">—</span>
+    </div>
+    <div id="ctrlTableWrap" style="margin-top:8px;"></div>
+    <div id="card1Alert"></div>
+  </div>
+
+  <!-- DELETE CONFIRM MODAL -->
+  <div id="delModal" hidden>
+    <div class="del-modal-bg" onclick="if(event.target===this)cancelDelete()">
+      <div class="del-modal">
+        <div class="del-modal-title">🗑 Remove Controller</div>
+        <div class="del-modal-addr" id="delModalAddr">—</div>
+        <div class="del-modal-info" id="delModalInfo">—</div>
+        <div id="delModalWarn"></div>
+        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
+          <button class="btn btn-primary" id="delConfirmBtn"
+            style="background:var(--red);border-color:var(--red);"
+            onclick="executeDelete()">Remove — sign &amp; send</button>
+          <button class="btn btn-ghost btn-sm" onclick="cancelDelete()">Cancel</button>
+        </div>
+        <div id="delTxAlert" style="margin-top:10px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CARD 2: GUARDIAN INPUT -->
+  <div class="card" id="card2" hidden>
+    <div class="card-hdr">
+      <span class="card-icon">🛡️</span>
+      <div>
+        <div class="card-title">Guardian Profile — backup controller</div>
+        <div class="card-sub">Another UP you control, granted access to this profile</div>
+      </div>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.6;">
+      Enter a <strong style="color:var(--txt);">different UP you control</strong>.
+      Once added, it can modify controllers on this profile — useful if you lose your primary key.
+    </p>
+    <div class="inp-row">
+      <input type="text" id="up2Input" placeholder="0x…  Guardian UP address" oninput="onUP2Input()" />
+      <button class="btn btn-ghost" onclick="validateUP2()">Verify</button>
+    </div>
+    <div id="up2Alert"></div>
+    <div id="guardianBlock" hidden style="margin-top:12px;">
+      <div class="profile-block guardian">
+        <div class="pb-avatar guardian" id="guardianAvatar">👤</div>
+        <div class="pb-info">
+          <div class="pb-label guardian" style="display:flex;align-items:center;gap:6px;">
+            Guardian Profile
+            <span id="guardianLinks" style="display:none;gap:4px;align-items:center;">
+              <a id="guardianBlockscoutLink" href="#" target="_blank" title="View on Blockscout Explorer" style="color:var(--muted);text-decoration:none;font-size:13px;line-height:1;" onmouseover="this.style.color='var(--slate)'" onmouseout="this.style.color='var(--muted)'">🔍</a>
+              <a id="guardianInspectLink" href="#" target="_blank" title="Inspect LSP data on erc725-inspect" style="color:var(--muted);text-decoration:none;font-size:13px;line-height:1;" onmouseover="this.style.color='var(--slate)'" onmouseout="this.style.color='var(--muted)'">🔬</a>
+            </span>
+          </div>
+          <div class="pb-name unnamed" id="guardianName">—</div>
+          <div class="pb-addr" id="guardianAddr">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CARD 3: PERMISSIONS
+       NOTE: NO perm bits here — they only appear dynamically inside .preset-custom-bits
+       when the Custom preset is selected. -->
+  <div class="card" id="card3" hidden>
+    <div class="card-hdr">
+      <span class="card-icon">🔑</span>
+      <div>
+        <div class="card-title">Permissions to grant the Guardian</div>
+        <div class="card-sub">What the guardian is allowed to do on this profile</div>
+      </div>
+    </div>
+    <div id="permModeNote" class="alert note" style="margin-top:0;margin-bottom:12px;"></div>
+    <div class="presets">
+
+      <!-- ① AI-Profile -->
+      <div class="preset sel" id="pr-ai-profile" onclick="selectPreset('ai-profile')">
+        <div class="preset-name">AI-Profile 🤖📝</div>
+        <div class="preset-desc">Profile & data updates only. Cannot send assets or call contracts.</div>
+        <div class="preset-tip">
+          ✅ Update LSP3 profile, LSP28 Grid, any ERC725Y data<br>
+          ✅ Sign messages (ERC-1271)<br>
+          ✅ Gasless relay execution<br>
+          ❌ Cannot call contracts (LSP26 Follow, DeFi, etc.)<br>
+          ❌ Cannot transfer LYX or any tokens
+        </div>
+      </div>
+
+      <!-- ② AI-Wallet -->
+      <div class="preset" id="pr-ai-wallet" onclick="selectPreset('ai-wallet')">
+        <div class="preset-name">AI-Wallet 🤖💰</div>
+        <div class="preset-desc">Full on-chain actions including asset movement.</div>
+        <div class="preset-warn">⚡ Tokens & DeFi: unrestricted &nbsp;·&nbsp; LYX: whitelist only</div>
+        <div class="preset-tip">
+          ✅ Profile & data updates, signing, relay<br>
+          ⚠️ LYX (or native) — only to AllowedCalls-whitelisted addresses<br>
+          ✅ LSP7 / LSP8 / ERC20 — transfer, approve, DeFi deposits (SUPER_CALL, unrestricted)<br>
+          ❌ Cannot add / remove controllers<br>
+          ❌ Cannot transfer profile ownership
+        </div>
+      </div>
+
+      <!-- ③ Recovery -->
+      <div class="preset" id="pr-recovery" onclick="selectPreset('recovery')">
+        <div class="preset-name">Recovery 🔑</div>
+        <div class="preset-desc">Manage controllers &amp; full on-chain actions.</div>
+        <div class="preset-warn">⚠️ Compatible with LUKSO Extension &amp; mobile app controller</div>
+        <div class="preset-tip">
+          ✅ Add / change controllers (ADDCONTROLLER + EDITPERMISSIONS)<br>
+          ✅ Transfer LYX, tokens, call contracts, update data, sign, relay<br>
+          ⚠️ Compatible with LUKSO Extension &amp; mobile app controller<br>
+          ⚠️ Can modify any other controller's permissions — treat as full admin<br>
+          ❌ Cannot transfer profile ownership (CHANGEOWNER)
+        </div>
+      </div>
+
+      <!-- ④ Custom -->
+      <div class="preset" id="pr-custom" onclick="selectPreset('custom')">
+        <div class="preset-name">Custom ⚙️</div>
+        <div class="preset-desc">Toggle permission bits manually.</div>
+        <div class="preset-warn">⚠️ Any combination is possible — review carefully before signing.</div>
+        <div class="preset-tip">
+          Select individual permission bits below.<br>
+          No restrictions are enforced — you are responsible for the combination you choose.
+        </div>
+      </div>
+
+    </div>
+    <!-- Perm bits: always visible, only clickable in custom mode -->
+    <div style="margin-top:12px;">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px;" id="permBitsLabel">Permissions — select Custom to toggle:</div>
+      <div class="perm-bits" id="permBits"></div>
+      <!-- Bitmap display: locked by default, edit on click -->
+      <div class="bitmap-row" id="bitmapDisplayRow">
+        <span class="bitmap-label">Bitmap:</span>
+        <span class="bitmap-display" id="bitmapDisplay">—</span>
+        <button class="bitmap-edit-btn" onclick="startBitmapEdit()" title="Edit bitmap manually">✏️</button>
+      </div>
+      <!-- Bitmap edit row: shown only during editing -->
+      <div class="bitmap-row" id="bitmapEditRow" hidden>
+        <span class="bitmap-label">Bitmap:</span>
+        <div class="bitmap-input-row">
+          <input type="text" id="permHexInput"
+            autocomplete="off" spellcheck="false"
+            placeholder="0x…"
+            onkeydown="onBitmapKeydown(event)" />
+          <button class="bitmap-confirm-btn" onclick="commitBitmapEdit()" title="Apply (Enter)">✓</button>
+          <button class="bitmap-cancel-btn"  onclick="cancelBitmapEdit()" title="Cancel (Esc)">✕</button>
+        </div>
+      </div>
+      <div id="bitmapEditError" style="display:none;font-size:11px;margin-top:4px;"></div>
+    </div>
+    <div id="permAlert"></div>
+  </div>
+
+  <!-- CARD 4: REVIEW & SEND -->
+  <div class="card" id="card4" hidden>
+    <div class="card-hdr">
+      <span class="card-icon">📤</span>
+      <div>
+        <div class="card-title">Review &amp; Send Transaction</div>
+        <div class="card-sub">Check everything before signing</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+      <div class="profile-block target" style="margin:0;padding:10px;align-items:flex-start;flex:1;min-width:120px;">
+        <div class="pb-avatar target" id="sumTargetAv" style="width:36px;height:36px;font-size:16px;flex-shrink:0;">👤</div>
+        <div class="pb-info" style="min-width:0;">
+          <div class="pb-label target" style="font-size:9px;">THIS PROFILE</div>
+          <div class="pb-name unnamed" id="sumTargetName" style="font-size:12px;">—</div>
+          <div class="pb-addr" style="font-size:9px;" id="sumTarget">—</div>
+        </div>
+      </div>
+      <div style="flex-shrink:0;font-size:16px;color:var(--border2);">←</div>
+      <div class="profile-block guardian" style="margin:0;padding:10px;align-items:flex-start;flex:1;min-width:120px;">
+        <div class="pb-avatar guardian" id="sumGuardianAv" style="width:36px;height:36px;font-size:16px;flex-shrink:0;">👤</div>
+        <div class="pb-info" style="min-width:0;">
+          <div class="pb-label guardian" style="font-size:9px;">GUARDIAN</div>
+          <div class="pb-name unnamed" id="sumGuardianName" style="font-size:12px;">—</div>
+          <div class="pb-addr" style="font-size:9px;" id="sumGuardian">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="irow"><span class="irow-k">Operation</span><span class="irow-v" id="sumOp">—</span></div>
+    <div class="irow"><span class="irow-k">Permission</span><span class="irow-v" id="sumPerm">—</span></div>
+    <div class="irow"><span class="irow-k">Keys written</span><span class="irow-v" id="sumKeys">—</span></div>
+    <div class="irow" style="border:none;">
+      <span class="irow-k">Array length (before → after)</span>
+      <span class="irow-v" id="sumArrLen">—</span>
+    </div>
+    <div class="alert note" style="margin-top:12px;">
+      <strong>Execution path:</strong><br>
+      <code>EOA → KM.execute( thisProfile.setDataBatch([keys],[values]) )</code><br>
+      The UP Extension wraps this automatically.
+    </div>
+    <hr class="div">
+    <div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-bottom:6px;letter-spacing:.05em;">CALLDATA — via UP Extension (relayer)</div>
+    <div class="cdata" id="calldataBox">—</div>
+
+    <hr class="div">
+    <div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-bottom:6px;letter-spacing:.05em;">CALLDATA — direct (EOA → KM, no relayer)</div>
+    <div class="alert note" style="margin-top:0;margin-bottom:8px;font-size:12px;">
+      If the relayer quota is exhausted, use this on
+      <a class="tx" href="#" id="blockscoutKMLink" target="_blank">Blockscout → KM → Write Contract → execute()</a>.<br>
+      Requires LYX in the controller EOA for gas (~0.01 LYX).
+    </div>
+    <div class="cdata" id="calldataDirectBox">—</div>
+    <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">
+      <button class="btn btn-primary" id="execBtn" onclick="showConfirm()">Send Transaction</button>
+    </div>
+    <div id="txConfirmArea" hidden style="margin-top:12px;">
+      <div class="alert error" style="font-size:12px;line-height:1.8;">
+        <strong>⚠️ Final confirmation — this action cannot be undone</strong><br>
+        • This directly overwrites on-chain Key Manager permissions.<br>
+        • Granting REENTRANCY or DELEGATECALL may allow the grantee to drain or take over this profile.<br>
+        • Transactions on blockchain are irreversible.<br>
+        • This tool is provided as-is, without warranty. Always verify the calldata before signing.
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button class="btn btn-primary" id="confirmExecBtn" onclick="executeTransaction()">✅ I understand — sign &amp; send</button>
+        <button class="btn btn-ghost btn-sm" onclick="cancelConfirm()">Cancel</button>
+      </div>
+    </div>
+    <div id="txAlert"></div>
+  </div>
+
+  <!-- CARD 5: VERIFY -->
+  <div class="card" id="card5" hidden>
+    <div class="card-hdr">
+      <span class="card-icon">✅</span>
+      <div><div class="card-title">Complete — Verify on Blockscout</div></div>
+    </div>
+    <div id="verifyContent"></div>
+  </div>
+
+</div>
+<script type="module">
+import { createClientUPProvider } from 'https://esm.sh/@lukso/up-provider@0.3.7'
+import { ethers } from 'https://esm.sh/ethers@5.7.2'
+
+// ── CONSTANTS ─────────────────────────────────────────────────────────────────
+
+const RPC      = 'https://rpc.mainnet.lukso.network'
+const EXPLORER = 'https://explorer.execution.mainnet.lukso.network'
+const CHAIN_ID = 42
+const IPFS_GW  = 'https://api.universalprofile.cloud/ipfs/'  // official gateway (no trailing slash needed in URL concat)
+
+// LSP-6 data keys (source: LIPs/LSP-6-KeyManager.md + LSP-2-ERC725YJSONSchema.md)
+const AP_ARRAY_KEY = '0xdf30dba06db6a30e65354d9a64c609861f089545ca58c6b4dbe31a5f338cb0e3'
+const AP_IDX_PFX   = 'df30dba06db6a30e65354d9a64c60986'   // first 16 bytes of AP_ARRAY_KEY
+const AP_PERM_PFX  = '4b80742de2bf82acb3630000'            // 12-byte prefix
+
+// LSP-3 ProfileMetadata key (keccak256("LSP3Profile") per LSP-3-Profile-Metadata.md)
+const LSP3_KEY = '0x5ef83ad9559033e6e941db7d7c495acdce616347d28e90c7ce47cbfcfcad3bc5'
+
+// Known interface IDs for controller type detection (ERC165)
+// LSP-11 interface ID: 0x049a28f1  (source: LIPs/LSP-11-BasicSocialRecovery.md)
+// LSP-0  interface ID: 0x24871b3d  (source: LIPs/LSP-0-ERC725Account.md)
+const IFACE_LSP11 = '0x049a28f1'
+const IFACE_LSP0  = '0x24871b3d'
+
+// LSP-6 permission bitmaps (verified against LIPs/LSP-6-KeyManager.md)
+const PERM = {
+  CHANGEOWNER:                     1n << 0n,   // 0x0001
+  ADDCONTROLLER:                   1n << 1n,   // 0x0002
+  EDITPERMISSIONS:                 1n << 2n,   // 0x0004
+  ADDEXTENSIONS:                   1n << 3n,
+  CHANGEEXTENSIONS:                1n << 4n,
+  ADDUNIVERSALRECEIVERDELEGATE:    1n << 5n,
+  CHANGEUNIVERSALRECEIVERDELEGATE: 1n << 6n,
+  REENTRANCY:                      1n << 7n,   // ⚠️ DANGEROUS
+  SUPER_TRANSFERVALUE:             1n << 8n,
+  TRANSFERVALUE:                   1n << 9n,
+  SUPER_CALL:                      1n << 10n,
+  CALL:                            1n << 11n,
+  SUPER_STATICCALL:                1n << 12n,
+  STATICCALL:                      1n << 13n,
+  SUPER_DELEGATECALL:              1n << 14n,  // ⚠️ DANGEROUS
+  DELEGATECALL:                    1n << 15n,  // ⚠️ DANGEROUS
+  DEPLOY:                          1n << 16n,
+  SUPER_SETDATA:                   1n << 17n,
+  SETDATA:                         1n << 18n,
+  ENCRYPT:                         1n << 19n,
+  DECRYPT:                         1n << 20n,
+  SIGN:                            1n << 21n,
+  EXECUTE_RELAY_CALL:              1n << 22n,
+}
+const DANGEROUS = PERM.REENTRANCY | PERM.SUPER_DELEGATECALL | PERM.DELEGATECALL
+
+// All defined permissions: bits 0-22 (EXECUTE_RELAY_CALL = bit 22 = 0x400000 is the highest)
+// Source: on-chain LSP6Constants.sol (verified via Blockscout). Bits 23+ are not defined
+// in the current KM implementation. tools-erc725-inspect lists ERC4337_PERMISSION at bit 23
+// but this is absent from the on-chain contract — treated as unknown/future bit.
+const ALL_PERMS = (1n << 23n) - 1n   // 0x7FFFFF
+
+// Presets (verified against LSP-6-KeyManager.md + LSP6Constants.sol on-chain):
+//   ai-profile: STATICCALL + SUPER_SETDATA + SIGN + EXECUTE_RELAY_CALL
+//   ai-wallet:  TRANSFERVALUE + SUPER_CALL + STATICCALL + SUPER_SETDATA + SIGN + EXECUTE_RELAY_CALL
+//   recovery:   0x7f3f06 = all regular permissions except CHANGEOWNER/Extensions/URD
+//               (matches LUKSO Extension & mobile app controller defaults)
+const PRESET_VALS = {
+  'ai-profile': PERM.STATICCALL | PERM.SUPER_SETDATA | PERM.SIGN | PERM.EXECUTE_RELAY_CALL,
+  'ai-wallet':  PERM.TRANSFERVALUE | PERM.SUPER_CALL | PERM.STATICCALL | PERM.SUPER_SETDATA | PERM.SIGN | PERM.EXECUTE_RELAY_CALL,
+  'recovery':   PERM.ADDCONTROLLER | PERM.EDITPERMISSIONS |
+                PERM.SUPER_TRANSFERVALUE | PERM.TRANSFERVALUE |
+                PERM.SUPER_CALL | PERM.CALL |
+                PERM.SUPER_STATICCALL | PERM.STATICCALL |
+                PERM.DEPLOY |
+                PERM.SUPER_SETDATA | PERM.SETDATA |
+                PERM.ENCRYPT | PERM.DECRYPT | PERM.SIGN | PERM.EXECUTE_RELAY_CALL,
+  'custom':     PERM.ADDCONTROLLER | PERM.EDITPERMISSIONS,
+}
+
+// Permission descriptions and risk levels (sourced from LSP-6-KeyManager.md)
+// Risk: 'critical' | 'high' | 'medium' | 'low'
+const PERM_INFO = {
+  CHANGEOWNER:                     { risk:'critical', label:'CHANGEOWNER',                     desc:'Transfer full ownership of this profile to any address. The new owner inherits complete control. Irreversible if done maliciously.' },
+  ADDCONTROLLER:                   { risk:'high',     label:'ADDCONTROLLER',                   desc:'Add new addresses to AddressPermissions[] and assign them any permissions, including dangerous ones. Can silently escalate the attack surface.' },
+  EDITPERMISSIONS:                 { risk:'high',     label:'EDITPERMISSIONS',                 desc:'Modify or revoke permissions of existing controllers. Can lock out the real owner by stripping their permissions (deadlock risk).' },
+  ADDEXTENSIONS:                   { risk:'medium',   label:'ADDEXTENSIONS',                   desc:'Register new LSP17 extension handlers for new function selectors. A malicious extension can intercept calls to the profile.' },
+  CHANGEEXTENSIONS:                { risk:'medium',   label:'CHANGEEXTENSIONS',                desc:'Replace existing LSP17 extension handlers. Can redirect calls to attacker-controlled logic already known by the profile.' },
+  ADDUNIVERSALRECEIVERDELEGATE:    { risk:'medium',   label:'ADDUNIVERSALRECEIVERDELEGATE',    desc:'Add new Universal Receiver Delegate hooks. Hooks run on every token/asset received — a malicious URD can siphon incoming assets.' },
+  CHANGEUNIVERSALRECEIVERDELEGATE: { risk:'medium',   label:'CHANGEUNIVERSALRECEIVERDELEGATE', desc:'Replace existing URD hooks. Same attack surface as ADDUNIVERSALRECEIVERDELEGATE, but targeting already-configured hooks.' },
+  REENTRANCY:                      { risk:'critical', label:'REENTRANCY',                      desc:'Allow re-entering KM.execute() / executeRelayCall() while a call is still in progress. Combined with TRANSFERVALUE or CALL, enables classic reentrancy drain attacks.' },
+  SUPER_TRANSFERVALUE:             { risk:'high',     label:'SUPER_TRANSFERVALUE',             desc:'Send LYX (native tokens) from this profile to ANY address, with no AllowedCalls restriction. Can drain the entire profile balance.' },
+  TRANSFERVALUE:                   { risk:'medium',   label:'TRANSFERVALUE',                   desc:'Send LYX to addresses restricted by AddressPermissions:AllowedCalls. Safer than SUPER_TRANSFERVALUE but requires correct AllowedCalls to be set.' },
+  SUPER_CALL:                      { risk:'high',     label:'SUPER_CALL',                      desc:'Execute a CALL to ANY contract with ANY calldata from this profile, with no restrictions. Full unrestricted external call capability.' },
+  CALL:                            { risk:'medium',   label:'CALL',                            desc:'Execute a CALL restricted to addresses/functions in AddressPermissions:AllowedCalls. Lower risk only if AllowedCalls is properly restricted.' },
+  SUPER_STATICCALL:                { risk:'low',      label:'SUPER_STATICCALL',                desc:'Execute read-only STATICCALLs to any contract. No state is modified; safe for querying on-chain data without restrictions.' },
+  STATICCALL:                      { risk:'low',      label:'STATICCALL',                      desc:'Execute read-only STATICCALLs restricted to AllowedCalls. Safe read-only access, scoped to permitted targets.' },
+  SUPER_DELEGATECALL:              { risk:'critical', label:'SUPER_DELEGATECALL',              desc:'Execute a DELEGATECALL to ANY contract — the called contract\'s code runs in the context of this profile and can overwrite any storage slot, including permissions. Equivalent to arbitrary code execution on this profile.' },
+  DELEGATECALL:                    { risk:'critical', label:'DELEGATECALL',                    desc:'Execute a DELEGATECALL to AllowedCalls-restricted contracts. Even restricted, DELEGATECALL code runs in the profile\'s storage context. Extreme risk unless you fully trust and audit the target contracts.' },
+  DEPLOY:                          { risk:'medium',   label:'DEPLOY',                          desc:'Deploy new contracts using CREATE/CREATE2 from this profile\'s address. SUPER_TRANSFERVALUE is also required to fund the new contract with LYX.' },
+  SUPER_SETDATA:                   { risk:'high',     label:'SUPER_SETDATA',                   desc:'Write ANY ERC725Y data key on this profile without restriction (except keys governed by their own permission: permissions, extensions, URD). Can overwrite LSP3 metadata, LSP5 assets, LSP12 issued assets, etc.' },
+  SETDATA:                         { risk:'low',      label:'SETDATA',                         desc:'Write ERC725Y data keys restricted to AddressPermissions:AllowedERC725YDataKeys. Risk depends on which keys are whitelisted. An empty AllowedERC725YDataKeys list blocks all writes.' },
+  ENCRYPT:                         { risk:'low',      label:'ENCRYPT',                         desc:'Encrypt data for on/off-chain purposes using this profile\'s key. Off-chain utility permission; no on-chain state change.' },
+  DECRYPT:                         { risk:'low',      label:'DECRYPT',                         desc:'Decrypt data for on/off-chain purposes. Off-chain utility permission; no on-chain state change.' },
+  SIGN:                            { risk:'low',      label:'SIGN',                            desc:'Sign messages validated via ERC-1271 (isValidSignature). Allows this controller to produce signatures that appear to come from the profile. Relevant if the profile signs off-chain agreements.' },
+  EXECUTE_RELAY_CALL:              { risk:'medium',   label:'EXECUTE_RELAY_CALL',              desc:'Allow this controller\'s off-chain signed relay calls to be executed via executeRelayCall(). Enables gasless meta-transactions but also allows batching calls without direct on-chain presence.' },
+}
+
+const RISK_COLOR = { critical:'var(--red)', high:'var(--warn)', medium:'var(--slate)', low:'var(--muted)' }
+const RISK_LABEL = { critical:'🔴 CRITICAL', high:'🟠 HIGH', medium:'🟡 MEDIUM', low:'🟢 LOW' }
+
+// AddressPermissions[index] = 0x + AP_IDX_PFX(16B) + uint128(index)(16B)
+function apIdxKey(index) { return '0x' + AP_IDX_PFX + index.toString(16).padStart(32, '0') }
+
+// AddressPermissions:Permissions:<addr> = 0x + AP_PERM_PFX(12B) + addr(20B)
+function apPermKey(addr)  { return '0x' + AP_PERM_PFX + addr.slice(2).toLowerCase() }
+
+// AddressPermissions:AllowedCalls:<addr> = 0x + 4b80742de2bf82acb3630000(12B) + addr(20B)
+function apAllowedCallsKey(addr) { return '0x4b80742de2bf82acb3630000' + addr.slice(2).toLowerCase() }
+
+// AddressPermissions:AllowedERC725YDataKeys:<addr> = 0x + 4b80742de2bf82acb3630001(12B) + addr(20B)
+function apAllowedDataKeysKey(addr) { return '0x4b80742de2bf82acb3630001' + addr.slice(2).toLowerCase() }
+
+// Encode uint128 as 16 bytes for array length
+function encLen(n)  { return '0x' + n.toString(16).padStart(32, '0') }
+
+// Encode permission bitmap as 32 bytes
+function encPerm(b) { return '0x' + b.toString(16).padStart(64, '0') }
+
+function parseBig(hex) { if (!hex || hex === '0x') return 0n; try { return BigInt(hex) } catch { return 0n } }
+
+// ERC725Y valueType "address" = 20 bytes raw (LSP-2 spec). Read last 40 hex chars.
+function parseAddr(hex) {
+  if (!hex || hex === '0x' || hex.length < 42) return null
+  try { return ethers.utils.getAddress('0x' + hex.slice(-40)) } catch { return null }
+}
+
+// ── LSP-3 METADATA ────────────────────────────────────────────────────────────
+//
+// VerifiableURI structure (LSP-2-ERC725YJSONSchema.md):
+//   [identifier 2B = 0x0000][verification method 4B][data length 2B][data NB][URL UTF-8]
+//   In hex chars: [4][8][4][dataLen*2][rest]
+//   Total prefix before URL = 4+8+4+(dataLen*2) hex chars
+
+function decodeVerifiableURI(hex) {
+  if (!hex || hex === '0x') return null
+  const d = hex.startsWith('0x') ? hex.slice(2) : hex
+  if (d.length < 16) return null
+  // dataLen is at chars 12-15 (bytes 6-7, after identifier+method)
+  const dataLen  = parseInt(d.slice(12, 16), 16)
+  const urlStart = 4 + 8 + 4 + dataLen * 2   // hex chars before URL
+  if (d.length <= urlStart) return null
+  const urlHex = d.slice(urlStart)
+  let str = ''
+  for (let i = 0; i + 1 < urlHex.length; i += 2)
+    str += String.fromCharCode(parseInt(urlHex.slice(i, i + 2), 16))
+  try { return decodeURIComponent(escape(str)) } catch { return str }
+}
+
+function resolveIPFS(raw) {
+  if (!raw) return null
+  if (raw.startsWith('ipfs://')) return IPFS_GW + raw.slice(7)
+  if (raw.startsWith('http'))    return raw
+  return null
+}
+
+// Fetch LSP3 profile: returns { name, imageUrl } or null
+async function fetchLSP3(address) {
+  try {
+    const rpc = new ethers.providers.JsonRpcProvider(RPC)
+    const up  = new ethers.Contract(address, UP_ABI, rpc)
+    const raw = await up.getData(LSP3_KEY)
+    const uri = decodeVerifiableURI(raw)
+    if (!uri) return null
+    const fetchUrl = resolveIPFS(uri)
+    if (!fetchUrl) return null
+    const res  = await fetch(fetchUrl)
+    if (!res.ok) return null
+    const json = await res.json()
+    // LSP-3 spec: root key is "LSP3Profile" containing the profile object
+    const prof = json.LSP3Profile || json
+    const name = typeof prof.name === 'string' && prof.name ? prof.name : null
+    // profileImage is an array of image objects with { url, width, height, verification }
+    const imgRaw  = Array.isArray(prof.profileImage) ? prof.profileImage[0]?.url : null
+    const imageUrl = resolveIPFS(imgRaw)
+    return { name, imageUrl }
+  } catch { return null }
+}
+
+function applyProfile(avatarId, nameId, meta) {
+  const nameEl = $(nameId)
+  if (meta?.name) {
+    nameEl.textContent = meta.name
+    nameEl.classList.remove('unnamed')
+  } else {
+    nameEl.textContent = 'Unnamed Profile'
+    nameEl.classList.add('unnamed')
+  }
+  if (meta?.imageUrl) {
+    $(avatarId).innerHTML = `<img src="${meta.imageUrl}" alt="" onerror="this.parentElement.textContent='👤'">`
+  }
+}
+
+// ── ABI ───────────────────────────────────────────────────────────────────────
+
+const UP_ABI = [
+  'function getData(bytes32) view returns (bytes)',
+  'function getDataBatch(bytes32[]) view returns (bytes[])',
+  'function setDataBatch(bytes32[],bytes[]) external',
+  'function owner() view returns (address)',
+  'function supportsInterface(bytes4) view returns (bool)',
+]
+// LSP-11 target() — returns the ERC725 account this recovery contract manages
+// Used as second-factor check: if target() === S.thisProfile, this is genuine LSP-11 for this UP
+const LSP11_ABI = ['function target() external view returns (address)']
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+
+const S = {
+  provider:    null,
+  accounts:    [],
+  ctxAccounts: [],
+  chainId:     0,
+
+  thisProfile: null,
+  thisKM:      null,
+
+  // AUTHORITATIVE on-chain array length, set by loadControllers().
+  // buildKeys() uses this as the next array index.
+  // NEVER use S.controllers.length — it may differ if null entries existed.
+  chainArrayLength: 0,
+  controllers: [],
+
+  guardianAddr:     null,
+  guardianMode:     null,   // 'new' | 'existing' | 'orphan'
+  guardianCurrPerm: 0n,
+
+  preset:    'ai-profile',
+  permValue: PRESET_VALS['ai-profile'],
+}
+
+// ── UP PROVIDER ───────────────────────────────────────────────────────────────
+
+async function initProvider() {
+  S.provider = createClientUPProvider()
+  S.provider.on('accountsChanged',        async a => { S.accounts    = a; await onConnUpdate() })
+  S.provider.on('contextAccountsChanged', async a => { S.ctxAccounts = a; await onConnUpdate() })
+  S.provider.on('chainChanged', id => { S.chainId = Number(id); updatePill() })
+  try {
+    S.accounts    = S.provider.allowedAccounts || []
+    S.ctxAccounts = S.provider.contextAccounts || []
+    S.chainId     = S.provider.chainId || 0
+  } catch {}
+  updatePill()
+  renderPermBits()
+  if (S.accounts.length || S.ctxAccounts.length) await onConnUpdate()
+}
+
+async function onConnUpdate() {
+  const candidate = S.ctxAccounts[0] || S.accounts[0]
+  if (!candidate) return
+  try {
+    const addr    = ethers.utils.getAddress(candidate)
+    S.thisProfile = addr
+    const rpc     = new ethers.providers.JsonRpcProvider(RPC)
+    const c       = new ethers.Contract(addr, UP_ABI, rpc)
+    S.thisKM      = await c.owner()
+    $('up1Addr').textContent = addr
+    $('up1KM').textContent   = S.thisKM
+    // Set explorer links for this profile
+    const tLinks = $('targetLinks')
+    if (tLinks) {
+      $('targetBlockscoutLink').href = `${EXPLORER}/address/${addr}`
+      $('targetBlockscoutLink').title = `View ${addr.slice(0,10)}… on Blockscout`
+      $('targetInspectLink').href = `https://erc725-inspect.lukso.tech/inspector?network=mainnet&address=${addr}`
+      $('targetInspectLink').title = `Inspect LSP data for ${addr.slice(0,10)}…`
+      tLinks.style.display = 'flex'
+    }
+    $('waitBox').setAttribute('hidden', '')
+    show('card1'); show('card2')
+    updatePill()
+    await Promise.all([
+      loadControllers(),
+      fetchLSP3(addr).then(meta => {
+        applyProfile('targetAvatar', 'targetName', meta)
+        applyProfile('sumTargetAv',  'sumTargetName', meta)
+      }),
+    ])
+  } catch(e) { setWaitError(e.message) }
+}
+
+// ── RESET TO CONTROLLER LIST ──────────────────────────────────────────────────
+// Resets everything back to "connected + controller list" state:
+// clears guardian input, hides card3/4/5, reloads controllers from chain.
+
+window.resetToControllerList = async function() {
+  // Clear guardian state
+  S.guardianAddr     = null
+  S.guardianMode     = null
+  S.guardianCurrPerm = 0n
+  S.preset           = 'ai-profile'
+  S.permValue        = PRESET_VALS['ai-profile']
+
+  // Reset guardian UI
+  $('up2Input').value     = ''
+  $('up2Input').className = ''
+  $('up2Alert').innerHTML = ''
+  $('guardianBlock').setAttribute('hidden', '')
+  $('guardianAvatar').innerHTML = '👤'
+  $('guardianName').textContent = '—'
+  $('sumGuardianAv').innerHTML  = '👤'
+  $('sumGuardianName').textContent = '—'
+  const gLinks = $('guardianLinks')
+  if (gLinks) gLinks.style.display = 'none'
+
+  // Hide downstream cards and clear their alert state
+  $('card3').setAttribute('hidden', '')
+  $('card4').setAttribute('hidden', '')
+  $('card5').setAttribute('hidden', '')
+  $('txAlert').innerHTML    = ''
+  $('permAlert').innerHTML  = ''
+  $('permModeNote').innerHTML = ''
+  $('txConfirmArea').setAttribute('hidden', '')
+  $('execBtn').disabled     = false
+
+  // Reload controllers from chain
+  await loadControllers()
+}
+
+// ── LOAD CONTROLLERS ──────────────────────────────────────────────────────────
+
+window.loadControllers = async function() {
+  $('ctrlTableWrap').innerHTML = '<div style="font-size:12px;color:var(--muted);padding:12px 0;min-height:40px;"><span class="spin"></span> Reading chain…</div>'
+  $('card1Alert').innerHTML = ''
+  const rpc = new ethers.providers.JsonRpcProvider(RPC)
+  const up1 = new ethers.Contract(S.thisProfile, UP_ABI, rpc)
+  try {
+    // Read array length (uint128, 16 bytes) — authoritative next-index source
+    const rawLen = await up1.getData(AP_ARRAY_KEY)
+    S.chainArrayLength = Number(parseBig(rawLen))
+    $('ctrlCount').textContent = `${S.chainArrayLength} entries (indices [0]–[${Math.max(0, S.chainArrayLength - 1)}])`
+
+    if (S.chainArrayLength === 0) {
+      $('ctrlTableWrap').innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;">No controllers registered yet.</div>'
+      S.controllers = []
+      checkSignerPerms()
+      return
+    }
+
+    // Read AddressPermissions[0] … [chainArrayLength-1]
+    const idxKeys  = Array.from({ length: S.chainArrayLength }, (_, i) => apIdxKey(i))
+    const rawAddrs = await up1.getDataBatch(idxKeys)
+    const valid = rawAddrs
+      .map((raw, i) => ({ index: i, addr: parseAddr(raw) }))
+      .filter(e => e.addr !== null)
+
+    // Read permissions for each address
+    const permKeys = valid.map(e => apPermKey(e.addr))
+    const rawPerms = await up1.getDataBatch(permKeys)
+
+    // Read AllowedCalls and AllowedERC725YDataKeys for each address
+    const allowedCallsKeys = valid.map(e => apAllowedCallsKey(e.addr))
+    const allowedCallsRaw = await up1.getDataBatch(allowedCallsKeys)
+    const allowedDataKeysKeys = valid.map(e => apAllowedDataKeysKey(e.addr))
+    const allowedDataKeysRaw = await up1.getDataBatch(allowedDataKeysKeys)
+
+    // Check if a value is an empty array (LSP-2: 32 bytes of zeros = empty array)
+    function isEmptyArray(raw) {
+      if (!raw || raw === '0x' || raw === '0x0') return true
+      // Empty array = 32 bytes of zeros (66 hex chars: '0x' + 64 zeros)
+      if (raw.length === 66 && raw === '0x' + '0'.repeat(64)) return true
+      return false
+    }
+
+    S.controllers = valid.map((e, i) => ({
+      address:           e.addr,
+      arrayIndex:        e.index,
+      permHex:           rawPerms[i] || '0x',
+      permBig:           parseBig(rawPerms[i]),
+      isLSP11:           false,   // filled below — genuine LSP-11 confirmed by target()
+      isLSP0:            false,   // filled below
+      isEOA:             false,   // filled below
+      hasAllowedCalls:   !isEmptyArray(allowedCallsRaw[i]),
+      hasAllowedDataKeys: !isEmptyArray(allowedDataKeysRaw[i]),
+    }))
+
+    // Detect contract types for non-KM entries.
+    // Step 1: getCode → distinguish EOA (no bytecode) from contract
+    // Step 2: supportsInterface for LSP-11 and LSP-0
+    // Step 3: LSP-11 ONLY — verify target() === thisProfile to defeat supportsInterface spoofing.
+    //         A malicious contract can return true for any bytes4, but forging target() to
+    //         return this specific UP address would require knowing it in advance.
+    // Note: interface IDs are stable within a spec version. If LSP-11 is upgraded with a
+    //       new interface ID, update IFACE_LSP11 here (LUKSO specs maintain backward compat).
+    await Promise.all(S.controllers.map(async c => {
+      if (c.address.toLowerCase() === S.thisKM?.toLowerCase()) return
+      try {
+        // Is this an EOA? getCode returns '0x' for EOAs
+        const code = await rpc.getCode(c.address)
+        c.isEOA = (code === '0x' || code === '0x0')
+        if (c.isEOA) return   // EOAs cannot implement any interface
+        const cc   = new ethers.Contract(c.address, UP_ABI, rpc)
+        const [r11, r0] = await Promise.allSettled([
+          cc.supportsInterface(IFACE_LSP11),
+          cc.supportsInterface(IFACE_LSP0),
+        ])
+        const claimsLSP11 = r11.status === 'fulfilled' && r11.value === true
+        c.isLSP0  = r0.status  === 'fulfilled' && r0.value  === true
+        // Second-factor for LSP-11: target() must resolve to thisProfile
+        if (claimsLSP11) {
+          try {
+            const r = new ethers.Contract(c.address, LSP11_ABI, rpc)
+            const t = await r.target()
+            c.isLSP11 = t.toLowerCase() === S.thisProfile.toLowerCase()
+          } catch { c.isLSP11 = false }
+        }
+      } catch { /* non-ERC165 contract or reverted — all flags stay false */ }
+    }))
+
+    let html = `<table class="ctrl-table">
+      <colgroup>
+        <col class="col-idx">
+        <col class="col-type">
+        <col><!-- address: takes remaining width -->
+        <col class="col-perm">
+        <col class="col-action">
+      </colgroup>
+      <thead><tr>
+        <th>#</th><th>Type</th><th>Address</th><th>Perm</th><th></th>
+      </tr></thead><tbody>`
+    S.controllers.forEach(c => {
+      const isKM     = c.address.toLowerCase() === S.thisKM?.toLowerCase()
+      const isTarget = S.guardianAddr && c.address.toLowerCase() === S.guardianAddr.toLowerCase()
+      const ADMIN_MASK = PERM.CHANGEOWNER | PERM.ADDCONTROLLER | PERM.EDITPERMISSIONS
+      const isAdmin  = !isKM && !isTarget && !c.isLSP11 && (c.permBig & ADMIN_MASK) !== 0n
+      const notable = []
+      if ((c.permBig & PERM.CHANGEOWNER) !== 0n)             notable.push('CHANGEOWNER')
+      if ((c.permBig & PERM.ADDCONTROLLER) !== 0n)           notable.push('ADDCONTROLLER')
+      if ((c.permBig & PERM.EDITPERMISSIONS) !== 0n)         notable.push('EDITPERMISSIONS')
+      if ((c.permBig & PERM.SUPER_TRANSFERVALUE) !== 0n)     notable.push('SUPER_TRANSFERVALUE')
+      if ((c.permBig & PERM.SUPER_CALL) !== 0n)              notable.push('SUPER_CALL')
+      if ((c.permBig & (PERM.SUPER_DELEGATECALL | PERM.DELEGATECALL | PERM.REENTRANCY)) !== 0n)
+        notable.push('⚠️ DANGEROUS')
+      const tipText = notable.length ? notable.join(', ') : 'no notable permissions'
+      const rowCls  = isTarget ? ' class="is-target"' : ''
+
+      // ── Type icon ────────────────────────────────────────────────────────────
+      // Priority: KM > RECOVERY(LSP-11) > UP(LSP-0) > EOA > Contract
+      let typeIcon, typeTip
+      if (isKM) {
+        typeIcon = '🔐\uFE0F'; typeTip = 'Key Manager (owner contract)'
+      } else if (c.isLSP11) {
+        typeIcon = '🛡️\uFE0F'; typeTip = 'LSP-11 Social Recovery contract (target() verified)'
+      } else if (c.isLSP0) {
+        typeIcon = '🆙\uFE0F'; typeTip = 'Universal Profile (LSP-0 ERC725Account)'
+      } else if (c.isEOA) {
+        typeIcon = '🔑\uFE0F'; typeTip = 'Externally Owned Account (private key wallet)'
+      } else {
+        typeIcon = '📄\uFE0F'; typeTip = 'Smart contract (type unknown / not ERC165)'
+      }
+
+      // ── Delete button ─────────────────────────────────────────────────────────
+      // Rule: EOA only. Any contract (KM, LSP-11, LSP-0, unknown) → disabled.
+      // Allowed:   EOA, UP (LSP-0) — user-identity types with legitimate swap use cases
+      // Disabled:  KM, confirmed LSP-11, unknown contracts, controllers with AllowedCalls/DataKeys
+      const isUnknownContract = !c.isEOA && !c.isLSP0 && !isKM
+      const hasRestrictions = c.hasAllowedCalls || c.hasAllowedDataKeys
+      const delDisabled = isKM || c.isLSP11 || isUnknownContract || hasRestrictions
+      const delTip = hasRestrictions
+        ? `⚠️ This controller has AllowedCalls/AllowedDataKeys restrictions.\nClear them manually via LUKSO Extension or Blockscout before removal.`
+        : isKM
+          ? 'Key Manager — cannot be removed'
+          : c.isLSP11
+            ? 'LSP-11 Social Recovery — deletion disabled to protect account recovery'
+            : isUnknownContract
+              ? 'Unknown contract — deletion disabled (role unclear; use Blockscout → Write Contract if intentional)'
+              : c.isLSP0
+                ? `Remove UP guardian [${c.arrayIndex}] — this UP will lose access to this profile`
+                : `Remove EOA controller [${c.arrayIndex}]`
+      const delBtn = delDisabled
+        ? `<span class="del-btn-off" title="${delTip}">🗑️\uFE0F</span>`
+        : `<button class="del-btn" onclick="startDelete(${c.arrayIndex})" title="${delTip}">🗑️\uFE0F</button>`
+
+      html += `<tr${rowCls}>
+        <td class="ctrl-perm">[${c.arrayIndex}]</td>
+        <td><span class="ctrl-type" title="${typeTip}">${typeIcon}</span></td>
+        <td class="ctrl-addr">${c.address}</td>
+        <td class="ctrl-perm" title="${encPerm(c.permBig)}">${shortHex(c.permHex)}</td>
+        <td style="text-align:right;">
+          <div style="display:inline-flex;align-items:center;gap:3px;">
+            ${isKM    ? '<span class="badge km"       title="Key Manager — full unrestricted owner access">KM</span>'                            : ''}
+            ${c.isLSP11 ? '<span class="badge recovery" title="LSP-11 Social Recovery (supportsInterface + target() verified)">RECOVERY</span>' : ''}
+            ${isAdmin ? '<span class="badge admin"    title="Has CHANGEOWNER, ADDCONTROLLER, and/or EDITPERMISSIONS">ADMIN</span>'               : ''}
+            ${delBtn}
+          </div>
+        </td></tr>`
+    })
+    html += '</tbody></table>'
+    $('ctrlTableWrap').innerHTML = html
+    checkSignerPerms()
+    if (S.guardianAddr) analyzePermSafety()
+    refreshPreview()
+  } catch(e) {
+    $('ctrlTableWrap').innerHTML = mkAlert('error', '❌ Read error: ' + e.message)
+  }
+}
+
+// accounts[0] is the connected UP address, NOT necessarily in AddressPermissions[].
+// If accounts[0] === thisProfile, the visitor is the owner — no check needed.
+function checkSignerPerms() {
+  const signer = S.accounts[0]
+  if (!signer) return
+  if (signer.toLowerCase() === S.thisProfile?.toLowerCase()) return
+  const sc = S.controllers.find(c => c.address.toLowerCase() === signer.toLowerCase())
+  if (!sc) {
+    setAlert('card1Alert', 'warning',
+      `⚠️ Connected UP (<code>${signer.slice(0,10)}…</code>) is not a registered controller and may not be able to execute.`)
+    return
+  }
+  if ((sc.permBig & (PERM.ADDCONTROLLER | PERM.EDITPERMISSIONS)) === 0n)
+    setAlert('card1Alert', 'warning', `⚠️ Connected UP lacks <code>ADDCONTROLLER</code> or <code>EDITPERMISSIONS</code>.`)
+}
+
+// ── GUARDIAN VALIDATION ───────────────────────────────────────────────────────
+
+window.onUP2Input = function() {
+  const v = $('up2Input').value.trim()
+  $('up2Input').className = ethers.utils.isAddress(v) ? 'valid' : (v ? 'bad' : '')
+  $('up2Alert').innerHTML = ''
+  $('guardianBlock').setAttribute('hidden', '')
+  // Reset guardian profile display to prevent stale image/name from previous address
+  $('guardianAvatar').innerHTML = '👤'
+  $('guardianName').textContent = '—'
+  $('sumGuardianAv').innerHTML = '👤'
+  $('sumGuardianName').textContent = '—'
+  const gLinks = $('guardianLinks')
+  if (gLinks) gLinks.style.display = 'none'
+  S.guardianAddr = null
+  S.guardianMode = null
+  S.guardianCurrPerm = 0n
+}
+
+window.validateUP2 = async function() {
+  const v = $('up2Input').value.trim()
+  if (!ethers.utils.isAddress(v)) { setAlert('up2Alert','error','❌ Invalid address.'); return }
+  const addr = ethers.utils.getAddress(v)
+  if (addr.toLowerCase() === S.thisProfile?.toLowerCase()) {
+    setAlert('up2Alert','error','❌ Cannot use the same address as this profile.'); return
+  }
+  setAlert('up2Alert','info','<span class="spin"></span> Checking on-chain…')
+  try {
+    const rpc   = new ethers.providers.JsonRpcProvider(RPC)
+    const up1   = new ethers.Contract(S.thisProfile, UP_ABI, rpc)
+    const guard = new ethers.Contract(addr, UP_ABI, rpc)
+
+    let isLSP0 = false
+    try { isLSP0 = await guard.supportsInterface('0x24871b3d') } catch {}
+
+    const rawPerm = await up1.getData(apPermKey(addr))
+    const permBig = parseBig(rawPerm)
+    const inArray = S.controllers.find(c => c.address.toLowerCase() === addr.toLowerCase())
+
+    S.guardianAddr     = addr
+    S.guardianCurrPerm = permBig
+
+    let alertType = 'success', msg = ''
+    if (inArray) {
+      S.guardianMode = 'existing'; alertType = 'warning'
+      msg = `⚠️ <strong>Already a controller</strong> at index [${inArray.arrayIndex}].<br>
+        Current permission: <code>${shortHex(encPerm(permBig))}</code><br>
+        Will update permissions only — array is <strong>not modified</strong> (1 key).`
+    } else if (permBig > 0n) {
+      S.guardianMode = 'orphan'; alertType = 'warning'
+      msg = `⚠️ <strong>Orphaned entry:</strong> permissions exist (<code>${shortHex(encPerm(permBig))}</code>) but address missing from array.<br>
+        Will add to array AND update permissions (3 keys).`
+    } else {
+      S.guardianMode = 'new'
+      msg = `✓ <strong>Not yet a controller.</strong> Will be appended to array (3 keys).`
+    }
+    msg += isLSP0 ? '<br>✓ Confirmed Universal Profile (LSP0).'
+                  : '<br>⚠️ LSP0 interface not confirmed — double-check this address.'
+    setAlert('up2Alert', alertType, msg)
+
+    $('guardianAddr').textContent = addr
+    $('guardianName').textContent = 'Loading…'
+    // Set explorer links for guardian
+    const gLinks = $('guardianLinks')
+    if (gLinks) {
+      $('guardianBlockscoutLink').href = `${EXPLORER}/address/${addr}`
+      $('guardianBlockscoutLink').title = `View ${addr.slice(0,10)}… on Blockscout`
+      $('guardianInspectLink').href = `https://erc725-inspect.lukso.tech/inspector?network=mainnet&address=${addr}`
+      $('guardianInspectLink').title = `Inspect LSP data for ${addr.slice(0,10)}…`
+      gLinks.style.display = 'flex'
+    }
+    show('guardianBlock')
+
+    // Reload target profile metadata (may have changed or not loaded yet)
+    fetchLSP3(S.thisProfile).then(meta => {
+      applyProfile('targetAvatar', 'targetName', meta)
+      applyProfile('sumTargetAv',  'sumTargetName', meta)
+    })
+
+    // ── CRITICAL ORDER ──────────────────────────────────────────────────────
+    // loadControllers() MUST complete before show(card3/4) and selectPreset(),
+    // because selectPreset() calls refreshPreview() which calls buildKeys()
+    // which reads S.chainArrayLength.
+    // If we show/selectPreset first, chainArrayLength is still the stale value
+    // from the previous call, causing the array index to be off by one.
+    await loadControllers()
+    // ────────────────────────────────────────────────────────────────────────
+
+    show('card3'); show('card4')
+
+    // For existing controllers: initialise permission card to their current bitmap.
+    // Match against known presets; fall back to 'custom' if no preset matches.
+    if (S.guardianMode === 'existing' && S.guardianCurrPerm > 0n) {
+      S.permValue = S.guardianCurrPerm
+      PRESET_VALS['custom'] = S.guardianCurrPerm
+      let matchedPreset = 'custom'
+      for (const [name, val] of Object.entries(PRESET_VALS)) {
+        if (name !== 'custom' && val === S.guardianCurrPerm) { matchedPreset = name; break }
+      }
+      selectPreset(matchedPreset)
+    } else {
+      selectPreset(S.preset)
+    }
+
+    fetchLSP3(addr).then(meta => {
+      applyProfile('guardianAvatar', 'guardianName', meta)
+      applyProfile('sumGuardianAv',  'sumGuardianName', meta)
+    })
+  } catch(e) {
+    setAlert('up2Alert','error','❌ ' + e.message)
+  }
+}
+
+// ── PERMISSIONS ───────────────────────────────────────────────────────────────
+
+window.selectPreset = function(name) {
+  S.preset = name
+  document.querySelectorAll('.preset').forEach(el => el.classList.toggle('sel', el.id === 'pr-' + name))
+  if (name !== 'custom') S.permValue = PRESET_VALS[name]
+  // Update label: clickable hint only in custom mode
+  const label = $('permBitsLabel')
+  if (label) label.textContent = name === 'custom'
+    ? 'Permissions — click to toggle:'
+    : 'Permissions — select Custom to toggle:'
+  renderPermBits()
+  analyzePermSafety()
+  refreshPreview()
+}
+
+window.togglePerm = function(bitName) {
+  if (S.preset !== 'custom') return
+  S.permValue = S.permValue ^ PERM[bitName]
+  PRESET_VALS['custom'] = S.permValue
+  renderPermBits()
+  analyzePermSafety()
+  refreshPreview()
+}
+
+function renderPermBits() {
+  const el = $('permBits'); if (!el) return
+  const isCustom = S.preset === 'custom'
+  const v = S.permValue
+  const entries = Object.entries(PERM)
+  let html = ''
+  entries.forEach(([name, bit]) => {
+    const on     = (v & bit) !== 0n
+    const info   = PERM_INFO[name] || { risk:'low', desc:name }
+    const danger = (bit & DANGEROUS) !== 0n
+    const cls    = ['pb',
+      on ? (danger ? 'danger' : 'on') : '',
+      isCustom ? 'clickable' : '',
+    ].filter(Boolean).join(' ')
+    const click = isCustom ? `onclick="togglePerm('${name}')"` : ''
+    const riskColor = RISK_COLOR[info.risk] || 'var(--muted)'
+    const riskLbl   = RISK_LABEL[info.risk] || info.risk
+    html += `<span class="pb-wrap" onmouseenter="positionTip(this)">
+      <span class="${cls}" ${click}>${name}</span>
+      <span class="perm-tip">
+        <div class="perm-tip-risk" style="color:${riskColor}">${riskLbl}</div>
+        <div class="perm-tip-name">${info.label}</div>
+        <div class="perm-tip-desc">${info.desc}</div>
+      </span>
+    </span>`
+  })
+  el.innerHTML = html
+  // Sync to locked display (not the edit input — that is only populated when edit mode opens)
+  const disp = $('bitmapDisplay')
+  if (disp) disp.textContent = encPerm(S.permValue)
+}
+
+// ── PERMISSION BITMAP EDIT MODE ──────────────────────────────────────────────
+// Design: display is always locked (read-only). User must click ✏️ to enter edit mode.
+// On ✓ / Enter: full validation runs; if clean, S.permValue is updated and calldata refreshes.
+// On ✕ / Escape / blur: input is discarded; previous value is restored. No intermediate state
+// ever reaches calldata. This eliminates the "mid-edit value is the calldata" problem.
+
+window.startBitmapEdit = function() {
+  const inp = $('permHexInput'); if (!inp) return
+  inp.value = encPerm(S.permValue)
+  inp.classList.remove('bad')
+  $('bitmapEditError').style.display = 'none'
+  $('bitmapEditError').textContent   = ''
+  $('bitmapDisplayRow').setAttribute('hidden', '')
+  $('bitmapEditRow').removeAttribute('hidden')
+  inp.focus(); inp.select()
+}
+
+window.cancelBitmapEdit = function() {
+  $('bitmapEditRow').setAttribute('hidden', '')
+  $('bitmapDisplayRow').removeAttribute('hidden')
+  $('bitmapEditError').style.display = 'none'
+}
+
+window.onBitmapKeydown = function(e) {
+  if (e.key === 'Enter')  { e.preventDefault(); commitBitmapEdit() }
+  if (e.key === 'Escape') { e.preventDefault(); cancelBitmapEdit() }
+}
+
+window.commitBitmapEdit = function() {
+  const inp = $('permHexInput'); if (!inp) return
+  const raw = inp.value.trim()
+  const errEl = $('bitmapEditError')
+
+  if (!raw) { cancelBitmapEdit(); return }
+
+  // ── Format check: must be exactly "0x" + 64 hex chars (bytes32) ──────────
+  // BigInt accepts any length, but a permission bitmap is bytes32.
+  // Requiring exact length prevents "0x66666" silently becoming "0x000...066666".
+  const HEX64 = /^0x[0-9a-fA-F]{64}$/
+  if (!HEX64.test(raw)) {
+    inp.classList.add('bad')
+    errEl.innerHTML   = '✕ Must be exactly <code>0x</code> followed by 64 hex characters (bytes32).'
+    errEl.style.cssText = 'display:block;font-size:11px;margin-top:4px;color:var(--red-lt);'
+    return
+  }
+
+  inp.classList.remove('bad')
+  errEl.style.display = 'none'
+
+  const val = BigInt(raw)
+
+  // ── Apply ─────────────────────────────────────────────────────────────────
+  S.permValue = val
+  PRESET_VALS['custom'] = val
+
+  // Match against non-custom presets
+  let matched = null
+  for (const [name, presetVal] of Object.entries(PRESET_VALS)) {
+    if (name !== 'custom' && presetVal === val) { matched = name; break }
+  }
+  const newPreset = matched || 'custom'
+  S.preset = newPreset
+
+  document.querySelectorAll('.preset').forEach(el => el.classList.toggle('sel', el.id === 'pr-' + newPreset))
+  const label = $('permBitsLabel')
+  if (label) label.textContent = newPreset === 'custom'
+    ? 'Permissions — click to toggle:'
+    : 'Permissions — select Custom to toggle:'
+
+  renderPermBits()
+
+  // ── Warn about undefined bits (bits 23+) — do not block ──────────────────
+  // The KM ignores undefined bits today; they may gain meaning in future LSP-6 revisions.
+  // Show as warning in permAlert so it is visible, but do not prevent sending.
+  const undefinedBits = val & ~ALL_PERMS
+  if (undefinedBits !== 0n) {
+    const existing = $('permAlert')
+    if (existing) {
+      const warnHtml = `<div class="alert warning" style="margin-top:6px;">
+        ⚠️ Bit(s) above bit 22 are set (<code>0x${undefinedBits.toString(16)}</code>).
+        These are not defined in the current LSP-6 spec. The Key Manager ignores them today,
+        but future revisions may assign meaning to those bits.
+      </div>`
+      // Prepend only once; analyzePermSafety will run next and may also write alerts
+      existing.innerHTML = warnHtml + existing.innerHTML
+    }
+  }
+
+  analyzePermSafety()
+  refreshPreview()
+
+  cancelBitmapEdit()
+}
+
+function analyzePermSafety() {
+  if (!S.guardianAddr) return
+  const nextIdx = S.chainArrayLength
+  const modeDesc = {
+    'new':      `🔵 <strong>New entry.</strong> 3 keys: array length → <code>${nextIdx + 1}</code>, array[<code>${nextIdx}</code>] = guardian address, permissions.`,
+    'existing': `🟡 <strong>Updating existing entry.</strong> 1 key: permissions only. Array unchanged.`,
+    'orphan':   `🟠 <strong>Fixing orphaned entry.</strong> 3 keys: array length → <code>${nextIdx + 1}</code>, array[<code>${nextIdx}</code>] = guardian address, permissions.`,
+  }
+  $('permModeNote').innerHTML = modeDesc[S.guardianMode] || ''
+
+  const alerts = []
+  const v = S.permValue
+
+  // ── CRITICAL: arbitrary code execution in profile's storage context ──────────
+  if ((v & PERM.SUPER_DELEGATECALL) !== 0n)
+    alerts.push(['error', '🔴 <strong>CRITICAL — SUPER_DELEGATECALL:</strong> The called contract\'s code runs inside this profile\'s storage context with NO restrictions. This is equivalent to arbitrary code execution on the profile and can rewrite any storage slot, including permissions.'])
+  if ((v & PERM.DELEGATECALL) !== 0n)
+    alerts.push(['error', '🔴 <strong>CRITICAL — DELEGATECALL:</strong> Same as SUPER_DELEGATECALL but scoped to AllowedCalls. Even restricted, the target contract runs in this profile\'s storage. Only grant if you have fully audited every AllowedCalls target.'])
+
+  // ── CRITICAL: reentrancy combined with value/call powers ────────────────────
+  if ((v & PERM.REENTRANCY) !== 0n) {
+    const hasDrain = (v & (PERM.SUPER_TRANSFERVALUE | PERM.TRANSFERVALUE | PERM.SUPER_CALL | PERM.CALL)) !== 0n
+    if (hasDrain)
+      alerts.push(['error', '🔴 <strong>CRITICAL — REENTRANCY + execution power:</strong> Combining REENTRANCY with TRANSFERVALUE or CALL enables classic reentrancy drain attacks. An attacker can recursively execute calls before state is updated and drain the profile balance.'])
+    else
+      alerts.push(['warning', '⚠️ <strong>REENTRANCY:</strong> Allows re-entering KM.execute() while a call is in progress. Dangerous when combined with any value-transfer or external-call permission. Avoid unless you have a specific audited use case.'])
+  }
+
+  // ── CRITICAL: ownership transfer ────────────────────────────────────────────
+  if ((v & PERM.CHANGEOWNER) !== 0n)
+    alerts.push(['error', '🔴 <strong>CRITICAL — CHANGEOWNER:</strong> Allows transferring full ownership of this profile to any address. A compromised guardian can call transferOwnership() and acceptOwnership() to permanently take over the profile.'])
+
+  // ── HIGH: unrestricted value/call/data ──────────────────────────────────────
+  if ((v & PERM.SUPER_TRANSFERVALUE) !== 0n)
+    alerts.push(['warning', '⚠️ <strong>HIGH — SUPER_TRANSFERVALUE:</strong> Can send LYX to any address without AllowedCalls restriction. A compromised guardian can drain the entire LYX balance of this profile.'])
+
+  if ((v & PERM.SUPER_CALL) !== 0n)
+    alerts.push(['warning', '⚠️ <strong>HIGH — SUPER_CALL:</strong> Can execute calls to any contract with any calldata from this profile, with no AllowedCalls restriction. This includes token transfers, approvals, and arbitrary contract interactions.'])
+
+  if ((v & PERM.SUPER_SETDATA) !== 0n)
+    alerts.push(['warning', '⚠️ <strong>HIGH — SUPER_SETDATA:</strong> Can overwrite any ERC725Y data key on this profile (LSP3 metadata, LSP5 assets, LSP12 issued assets, etc.) without restriction. Note: permission/extension/URD keys require their own separate permissions.'])
+
+  // ── HIGH: controller management ─────────────────────────────────────────────
+  if ((v & PERM.ADDCONTROLLER) !== 0n && (v & PERM.EDITPERMISSIONS) === 0n)
+    alerts.push(['warning', '⚠️ <strong>ADDCONTROLLER only:</strong> Can add new controllers with any permissions, but cannot edit existing ones. New controllers could be added with CHANGEOWNER or other high-risk permissions.'])
+
+  if ((v & PERM.EDITPERMISSIONS) !== 0n && (v & PERM.ADDCONTROLLER) === 0n)
+    alerts.push(['warning', '⚠️ <strong>EDITPERMISSIONS only:</strong> Can modify or remove permissions on existing controllers, including the ability to remove the owner\'s permissions (deadlock risk if this profile is the only admin).'])
+
+  // ── LSP17 / URD hook risks ───────────────────────────────────────────────────
+  if ((v & (PERM.ADDEXTENSIONS | PERM.CHANGEEXTENSIONS)) !== 0n)
+    alerts.push(['warning', '⚠️ <strong>EXTENSIONS permission:</strong> Can install or replace LSP17 extension handlers. Malicious extensions can intercept and manipulate calls forwarded to this profile.'])
+
+  if ((v & (PERM.ADDUNIVERSALRECEIVERDELEGATE | PERM.CHANGEUNIVERSALRECEIVERDELEGATE)) !== 0n)
+    alerts.push(['warning', '⚠️ <strong>UNIVERSALRECEIVERDELEGATE permission:</strong> Can install or replace URD hooks that execute on every token/asset transfer received. A malicious URD can siphon assets automatically on receipt.'])
+
+  // ── Deadlock detection (existing controller permission reduction) ────────────
+  if (S.guardianMode === 'existing' && S.guardianCurrPerm > 0n) {
+    const removing = S.guardianCurrPerm & ~v
+    if (removing > 0n) {
+      const loseAdd  = (removing & PERM.ADDCONTROLLER)   !== 0n
+      const loseEdit = (removing & PERM.EDITPERMISSIONS) !== 0n
+      if (loseAdd || loseEdit) {
+        const othAdd  = S.controllers.filter(c => c.address.toLowerCase() !== S.guardianAddr.toLowerCase() && (c.permBig & PERM.ADDCONTROLLER)   !== 0n).length
+        const othEdit = S.controllers.filter(c => c.address.toLowerCase() !== S.guardianAddr.toLowerCase() && (c.permBig & PERM.EDITPERMISSIONS) !== 0n).length
+        if (loseAdd  && othAdd  === 0) alerts.push(['error', '🔒 <strong>Deadlock:</strong> No other controller would have <code>ADDCONTROLLER</code> after this change. The profile would have no way to add new controllers.'])
+        if (loseEdit && othEdit === 0) alerts.push(['error', '🔒 <strong>Deadlock:</strong> No other controller would have <code>EDITPERMISSIONS</code> after this change. Existing controller permissions could not be modified.'])
+        if (!alerts.some(a => a[1].includes('Deadlock')))
+          alerts.push(['warning', `⚠️ Reducing permissions from <code>${shortHex(encPerm(S.guardianCurrPerm))}</code> to <code>${shortHex(encPerm(v))}</code>. Ensure at least one other controller retains admin access.`])
+      }
+    }
+  }
+
+  if (v === 0n)
+    alerts.push(['warning', '⚠️ Permission bitmap is 0x00 — the guardian will be listed in AddressPermissions[] but the Key Manager will reject all calls from it.'])
+
+  $('permAlert').innerHTML = alerts.map(([t, m]) => mkAlert(t, m)).join('')
+}
+
+// ── BUILD CALLDATA ────────────────────────────────────────────────────────────
+//
+// ADDCONTROLLER path (mode = 'new' or 'orphan') — 3 keys:
+//   [0] AP_ARRAY_KEY                   → encLen(chainArrayLength + 1)
+//   [1] apIdxKey(chainArrayLength)     → guardian address (20 bytes raw per LSP-2)
+//   [2] apPermKey(guardian)            → encPerm(permValue)
+//
+//   Next index = S.chainArrayLength (set by loadControllers from chain read).
+//
+// EDITPERMISSIONS path (mode = 'existing') — 1 key:
+//   [0] apPermKey(guardian)            → encPerm(permValue)
+
+function buildKeys() {
+  // Defense-in-depth: mask to defined bit range before encoding.
+  // onPermHexInput already strips undefined bits, but this catches any other code path.
+  const perm = encPerm(S.permValue & ALL_PERMS)
+  if (S.guardianMode === 'existing') {
+    return {
+      keys:   [apPermKey(S.guardianAddr)],
+      values: [perm],
+      desc:   '1 key (permissions update only, array unchanged)',
+      opName: 'EDITPERMISSIONS — update existing controller',
+    }
+  }
+  const nextIdx = S.chainArrayLength
+  return {
+    keys:   [AP_ARRAY_KEY, apIdxKey(nextIdx), apPermKey(S.guardianAddr)],
+    values: [encLen(nextIdx + 1), S.guardianAddr.toLowerCase(), perm],
+    desc:   `3 keys — array length, array[${nextIdx}], permissions`,
+    opName: S.guardianMode === 'orphan'
+      ? 'ADDCONTROLLER — repair orphan + append to array'
+      : 'ADDCONTROLLER — append new controller',
+  }
+}
+
+window.refreshPreview = function() {
+  if (!S.thisProfile || !S.guardianAddr) return
+  const { keys, values, desc, opName } = buildKeys()
+  const iface    = new ethers.utils.Interface(UP_ABI)
+  const upCalldata = iface.encodeFunctionData('setDataBatch', [keys, values])
+
+  $('sumTarget').textContent      = S.thisProfile
+  $('sumGuardian').textContent    = S.guardianAddr
+  $('sumOp').textContent          = opName
+  // shortHex prevents 66-char bitmap from forcing irow reflow on every preset change
+  const permFull = encPerm(S.permValue)
+  const sumPermEl = $('sumPerm')
+  sumPermEl.textContent = shortHex(permFull)
+  sumPermEl.title       = permFull
+  $('sumKeys').textContent        = desc
+  const after = S.chainArrayLength + (S.guardianMode === 'existing' ? 0 : 1)
+  $('sumArrLen').textContent      = `${S.chainArrayLength} → ${after}`
+
+  // Relayer calldata: UP Extension sends {from: UP, to: UP, data: setDataBatch}
+  // Extension wraps as: EOA → Relayer → KM.execute(upCalldata)
+  let cd = `<span class="ck">setDataBatch</span>(<br>`
+  keys.forEach((k, i) => {
+    cd += `&nbsp;<span class="ck">[${i}]</span> ${k}<br>`
+    cd += `&nbsp;&nbsp;→ <span class="cv">${values[i]}</span><br>`
+  })
+  cd += `)<br><span class="ck">calldata:</span><br>${upCalldata}`
+  $('calldataBox').innerHTML = cd
+
+  // Direct calldata: EOA → KM.execute(upCalldata)
+  // Use this on Blockscout → KM → Write Contract → execute(bytes)
+  const kmIface      = new ethers.utils.Interface(['function execute(bytes calldata payload) external returns (bytes memory)'])
+  const kmCalldata   = kmIface.encodeFunctionData('execute', [upCalldata])
+  const explorerKM   = `${EXPLORER}/address/${S.thisKM}?tab=write_contract`
+  const linkEl = $('blockscoutKMLink')
+  if (linkEl) linkEl.href = explorerKM
+
+  let cd2 = `<span class="ck">Target:</span> KM = <span class="cv">${S.thisKM}</span><br>`
+  cd2 += `<span class="ck">Function:</span> execute(bytes payload)<br>`
+  cd2 += `<span class="ck">payload</span> = setDataBatch calldata above<br>`
+  cd2 += `<span class="ck">calldata:</span><br>${kmCalldata}`
+  $('calldataDirectBox').innerHTML = cd2
+}
+
+// ── DELETE CONTROLLER (B + C unified) ────────────────────────────────────────
+//
+// Strategy:
+//   B — target is last index (arrayIndex === chainArrayLength - 1):
+//       keys: [AP_ARRAY_KEY, apIdxKey(last), apPermKey(addr)]
+//      values: [encLen(len-1), 0x, 0x]
+//
+//   C — target is middle (swap-and-pop):
+//       Move last entry into the deleted slot, clear old last slot, clear perm.
+//       keys: [AP_ARRAY_KEY, apIdxKey(target), apIdxKey(last), apPermKey(addr)]
+//      values: [encLen(len-1), lastAddr, 0x, 0x]
+//       Note: apPermKey(lastAddr) is NOT changed — last entry's permissions survive.
+//
+// Safety checks (all must pass before modal opens):
+//   1. Cannot remove KM address
+//   2. Cannot remove connected UP itself (self-lock)
+//   3. After removal, at least one controller must retain ADDCONTROLLER
+//   4. After removal, at least one controller must retain EDITPERMISSIONS
+//   5. chainArrayLength must be > 0 (sanity)
+
+const D = {
+  targetIndex: null,
+  targetAddr:  null,
+  targetPerm:  0n,
+  mode:        null,   // 'B' | 'C'
+  lastAddr:    null,
+}
+
+window.startDelete = function(arrayIndex) {
+  const ctrl = S.controllers.find(c => c.arrayIndex === arrayIndex)
+  if (!ctrl) return
+
+  // Guard: KM cannot be removed
+  if (ctrl.address.toLowerCase() === S.thisKM?.toLowerCase()) {
+    alert('The Key Manager address cannot be removed from AddressPermissions[].')
+    return
+  }
+
+  // Guard: any contract that isn't a known user-identity type (EOA or UP) cannot be removed
+  const isUnknownContract = !ctrl.isEOA && !ctrl.isLSP0 && ctrl.address.toLowerCase() !== S.thisKM?.toLowerCase()
+  if (ctrl.isLSP11) {
+    alert('This is a confirmed LSP-11 Social Recovery contract.\nDeletion is disabled to protect account recovery.\nUse Blockscout → Write Contract if you intentionally need to remove it.')
+    return
+  }
+  if (isUnknownContract) {
+    alert('Unknown contract controllers cannot be removed via this tool.\nUse Blockscout → Write Contract if you intentionally need to remove it.')
+    return
+  }
+
+  // Guard: cannot remove self (the currently connected UP)
+  // Note: this tool's add flow prevents adding thisProfile as a controller,
+  // so this guard primarily catches controllers added by other tools.
+  const signer = S.accounts[0]
+  if (signer && ctrl.address.toLowerCase() === signer.toLowerCase()) {
+    alert('You cannot remove the currently connected address — this would lock you out.')
+    return
+  }
+
+  // Guard: cannot remove controllers with AllowedCalls/AllowedDataKeys restrictions
+  // These restrictions would be left orphaned if the controller is removed
+  if (ctrl.hasAllowedCalls || ctrl.hasAllowedDataKeys) {
+    const restrictions = []
+    if (ctrl.hasAllowedCalls) restrictions.push('AllowedCalls')
+    if (ctrl.hasAllowedDataKeys) restrictions.push('AllowedERC725YDataKeys')
+    alert(`⚠️ This controller has restrictions that must be cleared first:\n\n${restrictions.join(' and ')}\n\nThese will NOT be automatically removed and may cause issues if re-added later.\n\nPlease clear them manually via LUKSO Extension or Blockscout before removal.`)
+    return
+  }
+
+  const len = S.chainArrayLength
+  if (len === 0) return
+
+  const ADMIN_MASK = PERM.CHANGEOWNER | PERM.ADDCONTROLLER | PERM.EDITPERMISSIONS
+
+  // Check deadlock: would removing this address leave zero controllers with ADDCONTROLLER or EDITPERMISSIONS?
+  const others = S.controllers.filter(c => c.arrayIndex !== arrayIndex)
+  const othAdd  = others.filter(c => (c.permBig & PERM.ADDCONTROLLER)   !== 0n).length
+  const othEdit = others.filter(c => (c.permBig & PERM.EDITPERMISSIONS) !== 0n).length
+  const hasAdd  = (ctrl.permBig & PERM.ADDCONTROLLER)   !== 0n
+  const hasEdit = (ctrl.permBig & PERM.EDITPERMISSIONS) !== 0n
+
+  const warns = []
+
+  // Double-check for restrictions (should already be blocked above, but warn in modal too)
+  if (ctrl.hasAllowedCalls || ctrl.hasAllowedDataKeys) {
+    const restrictions = []
+    if (ctrl.hasAllowedCalls) restrictions.push('<code>AllowedCalls</code>')
+    if (ctrl.hasAllowedDataKeys) restrictions.push('<code>AllowedERC725YDataKeys</code>')
+    warns.push(`🔴 <strong>CRITICAL — Restrictions detected:</strong><br>
+      This controller has ${restrictions.join(' and ')} set.<br>
+      These will <strong>NOT</strong> be automatically removed and will remain as orphaned data on-chain.<br>
+      If this address is re-added as a controller later, these old restrictions may cause unexpected behavior.<br><br>
+      <strong>Recommended:</strong> Clear restrictions manually before removal.`)
+  }
+
+  if (ctrl.isLSP0) {
+    warns.push(`⚠️ <strong>This is a Universal Profile (LSP-0).</strong><br>
+      The UP at <code>${ctrl.address.slice(0,10)}…</code> will lose all access to this profile.
+      If this is a guardian swap, add the new guardian first before removing this one.`)
+  }
+
+  if (hasAdd  && othAdd  === 0) warns.push('🔒 <strong>Deadlock risk:</strong> No remaining controller would have <code>ADDCONTROLLER</code>. New controllers could never be added.')
+  if (hasEdit && othEdit === 0) warns.push('🔒 <strong>Deadlock risk:</strong> No remaining controller would have <code>EDITPERMISSIONS</code>. Existing permissions could never be changed.')
+  if ((ctrl.permBig & ADMIN_MASK) !== 0n && others.filter(c => (c.permBig & ADMIN_MASK) !== 0n).length === 0)
+    warns.push('⚠️ This is the last admin-capable controller. After removal, no address can manage permissions.')
+
+  // Always show a base warning — deletion is never "safe"
+  warns.push('⚠️ <strong>Removal is irreversible on mainnet.</strong> Verify the address and strategy below before signing.')
+
+  // Determine mode B vs C
+  const lastIndex = len - 1
+  if (arrayIndex > lastIndex) { console.error('Index out of range'); return }
+
+  D.targetIndex = arrayIndex
+  D.targetAddr  = ctrl.address
+  D.targetPerm  = ctrl.permBig
+  D.mode        = (arrayIndex === lastIndex) ? 'B' : 'C'
+  D.lastAddr    = (D.mode === 'C')
+    ? (S.controllers.find(c => c.arrayIndex === lastIndex)?.address || null)
+    : null
+
+  // Populate modal
+  $('delModalAddr').textContent = ctrl.address
+  $('delModalInfo').innerHTML = D.mode === 'B'
+    ? `Strategy: <strong>direct removal</strong> (index [${arrayIndex}] is the last entry).<br>
+       Writes 3 keys: array length → <code>${len - 1}</code>, slot [${arrayIndex}] → <code>0x</code>, permissions → <code>0x</code>.`
+    : `Strategy: <strong>swap-and-pop</strong> (index [${arrayIndex}] is not the last entry).<br>
+       Moves last entry [${lastIndex}] (<code>${D.lastAddr?.slice(0,10)}…</code>) into slot [${arrayIndex}],
+       then clears slot [${lastIndex}] and permissions.<br>
+       Writes 4 keys. The moved address keeps its existing permissions unchanged.`
+
+  $('delModalWarn').innerHTML = warns.map(w => `<div class="alert ${w.startsWith('🚨') ? 'error' : 'warning'} del-modal-warn" style="margin-bottom:6px;">${w}</div>`).join('')
+
+  $('delTxAlert').innerHTML = ''
+  $('delConfirmBtn').disabled = false
+  $('delModal').removeAttribute('hidden')
+}
+
+window.cancelDelete = function() {
+  $('delModal').setAttribute('hidden', '')
+}
+
+window.executeDelete = async function() {
+  if (D.targetAddr === null) return
+  $('delConfirmBtn').disabled = true
+  setAlert('delTxAlert', 'info', '<span class="spin"></span> Sending to wallet…')
+
+  try {
+    const len     = S.chainArrayLength
+    const lastIdx = len - 1
+    let keys, values
+
+    if (D.mode === 'B') {
+      // Direct removal — target IS the last element
+      keys   = [AP_ARRAY_KEY, apIdxKey(D.targetIndex), apPermKey(D.targetAddr)]
+      values = [encLen(len - 1), '0x', '0x']
+    } else {
+      // Swap-and-pop — move last element into the deleted slot
+      if (!D.lastAddr) throw new Error('Could not resolve last array entry address')
+      keys   = [AP_ARRAY_KEY, apIdxKey(D.targetIndex), apIdxKey(lastIdx), apPermKey(D.targetAddr)]
+      values = [encLen(len - 1), D.lastAddr.toLowerCase(), '0x', '0x']
+    }
+
+    const upCalldata = new ethers.utils.Interface(UP_ABI).encodeFunctionData('setDataBatch', [keys, values])
+    const txHash = await S.provider.request({
+      method: 'eth_sendTransaction',
+      params: [{ from: S.thisProfile, to: S.thisProfile, data: upCalldata, value: '0x0' }],
+    })
+    setAlert('delTxAlert', 'info',
+      `<span class="spin"></span> Waiting for confirmation…<br>
+       <a class="tx" href="${EXPLORER}/tx/${txHash}" target="_blank">${txHash}</a>`)
+    const receipt = await new ethers.providers.Web3Provider(S.provider).waitForTransaction(txHash, 1, 60000)
+    if (receipt.status === 1) {
+      setAlert('delTxAlert', 'success',
+        `✅ Confirmed in block ${receipt.blockNumber}<br>
+         <a class="tx" href="${EXPLORER}/tx/${txHash}" target="_blank">View on Blockscout →</a>`)
+      // Auto-close after 2s and refresh
+      setTimeout(async () => {
+        $('delModal').setAttribute('hidden', '')
+        await loadControllers()
+      }, 2000)
+    } else {
+      setAlert('delTxAlert', 'error', `❌ Transaction failed (status=0)`)
+      $('delConfirmBtn').disabled = false
+    }
+  } catch(e) {
+    const m = e?.message || String(e)
+    if (/rejected|denied|cancel/i.test(m))
+      setAlert('delTxAlert', 'warning', '⚠️ Cancelled.')
+    else
+      setAlert('delTxAlert', 'error', `❌ ${m}`)
+    $('delConfirmBtn').disabled = false
+  }
+}
+
+// ── EXECUTE ───────────────────────────────────────────────────────────────────
+
+window.showConfirm = function() {
+  show('txConfirmArea')
+  $('execBtn').disabled = true
+  $('txAlert').innerHTML = ''
+}
+
+window.cancelConfirm = function() {
+  $('txConfirmArea').setAttribute('hidden', '')
+  $('execBtn').disabled = false
+  $('txAlert').innerHTML = ''
+}
+
+window.executeTransaction = async function() {
+  if (!S.thisProfile || !S.guardianAddr) { setAlert('txAlert','error','❌ Missing data.'); return }
+  const confirmBtn = $('confirmExecBtn')
+  if (confirmBtn) confirmBtn.disabled = true
+  setAlert('txAlert','info','<span class="spin"></span> Sending to wallet…')
+  try {
+    const { keys, values } = buildKeys()
+    const upCalldata = new ethers.utils.Interface(UP_ABI).encodeFunctionData('setDataBatch', [keys, values])
+    const txHash = await S.provider.request({
+      method: 'eth_sendTransaction',
+      params: [{ from: S.thisProfile, to: S.thisProfile, data: upCalldata, value: '0x0' }],
+    })
+    setAlert('txAlert','info',
+      `<span class="spin"></span> Waiting for confirmation…<br>
+       <a class="tx" href="${EXPLORER}/tx/${txHash}" target="_blank">${txHash}</a>`)
+    const receipt = await new ethers.providers.Web3Provider(S.provider).waitForTransaction(txHash, 1, 60000)
+    if (receipt.status === 1) {
+      setAlert('txAlert','success',
+        `✅ Confirmed in block ${receipt.blockNumber}<br>
+         <a class="tx" href="${EXPLORER}/tx/${txHash}" target="_blank">View on Blockscout →</a>`)
+      showVerify(txHash)
+      await loadControllers()
+    } else {
+      setAlert('txAlert','error',
+        `❌ Transaction failed (status=0)<br>
+         <a class="tx" href="${EXPLORER}/tx/${txHash}" target="_blank">Inspect on Blockscout →</a>`)
+    }
+  } catch(e) {
+    const m = e?.message || String(e)
+
+    if (/rejected|denied|cancel/i.test(m)) {
+      setAlert('txAlert', 'warning', '⚠️ Transaction cancelled.')
+
+    } else if (/403|Insufficient balance|Relayer/i.test(m)) {
+      // UP Extension uses a relayer (gasless) by default.
+      // 403 means the relayer quota for this address is exhausted.
+      setAlert('txAlert', 'error',
+        `❌ <strong>Relayer quota exhausted.</strong><br>
+         The UP Extension's gasless relay has run out of quota for this profile.<br><br>
+         <strong>Options:</strong><br>
+         1. In the UP Extension settings, switch from <em>Relayer</em> to <em>Direct</em> (requires LYX in the controller EOA)<br>
+         2. Wait for the relayer quota to refill<br>
+         3. Execute via Blockscout → Write Contract using the controller EOA directly<br><br>
+         <span style="font-size:11px;opacity:.7;">Raw: ${m}</span>`)
+
+    } else {
+      setAlert('txAlert', 'error', `❌ ${m}`)
+    }
+  } finally {
+    // Always re-enable — even if wallet hangs, times out, or throws unexpectedly
+    $('txConfirmArea').setAttribute('hidden', '')
+    $('execBtn').disabled = false
+    if (confirmBtn) confirmBtn.disabled = false
+  }
+}
+
+// ── UI HELPERS ────────────────────────────────────────────────────────────────
+
+function $(id)             { return document.getElementById(id) }
+function show(id) {
+  const el = $(id); if (!el) return
+  el.removeAttribute('hidden')
+  if (el.classList.contains('card')) {
+    el.classList.remove('card-in')
+    void el.offsetWidth  // reflow to restart animation
+    el.classList.add('card-in')
+  }
+}
+
+// Tooltip direction: check if tooltip would overflow right edge and flip if so.
+// Called onmouseenter so measurement reflects actual rendered position.
+window.positionTip = function(wrap) {
+  const tip = wrap.querySelector('.perm-tip')
+  if (!tip) return
+  // Reset to default (left-anchored) before measuring
+  wrap.classList.remove('tip-flip')
+  const rect = tip.getBoundingClientRect()
+  if (rect.right > window.innerWidth - 8) {
+    wrap.classList.add('tip-flip')
+  }
+}
+function mkAlert(t, m)     { return `<div class="alert ${t}">${m}</div>` }
+function setAlert(id, t, m){ $(id).innerHTML = mkAlert(t, m) }
+
+function updatePill() {
+  const ok = !S.chainId || S.chainId === CHAIN_ID
+  $('cpill').className   = ok ? 'cpill ok' : 'cpill'
+  $('cpill').textContent = ok ? 'LUKSO ✓' : `Chain ${S.chainId} ⚠️`
+}
+
+function setWaitError(msg) {
+  const wb = $('waitBox'); wb.removeAttribute('hidden')
+  wb.innerHTML = `<div style="font-size:22px;margin-bottom:8px;">⚠️</div>
+    <div class="w-title">Connection error</div><div class="w-desc" style="color:var(--red);">${msg}</div>`
+}
+
+function shortHex(hex) {
+  if (!hex || hex === '0x') return '0x0'
+  const c = hex.replace(/^0x0+/, '0x')
+  return c.length <= 8 ? c : c.slice(0, 6) + '…'
+}
+
+function showVerify(txHash) {
+  show('card5')
+  $('verifyContent').innerHTML = `
+    <div class="irow"><span class="irow-k">Profile state</span>
+      <span class="irow-v"><a class="tx" href="${EXPLORER}/address/${S.thisProfile}?tab=read_write_contract" target="_blank">Read Contract →</a></span></div>
+    <div class="irow"><span class="irow-k">Transaction</span>
+      <span class="irow-v"><a class="tx" href="${EXPLORER}/tx/${txHash}" target="_blank">${txHash.slice(0,14)}…</a></span></div>
+    <div class="irow" style="border:none;"><span class="irow-k">LSP Inspect</span>
+      <span class="irow-v"><a class="tx" href="https://erc725-inspect.lukso.tech/inspector?network=mainnet&address=${S.thisProfile}" target="_blank">erc725-inspect →</a></span></div>
+    <div class="alert note" style="margin-top:10px;">
+      <strong>Future recovery:</strong><br>
+      From the guardian's KeyManager:<br>
+      <code>guardianUP.execute(CALL, thisKM, 0, thisKM.execute(payload))</code><br>
+      Or: Blockscout → Guardian UP → Write Contract → execute().
+    </div>`
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+initProvider()
+selectPreset('ai-profile')
+</script>
+</body>
+</html>
