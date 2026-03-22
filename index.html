@@ -86,9 +86,10 @@
     .spacer { flex:1; }
     .cpill {
       font-family:var(--mono); font-size:10px; font-weight:500;
-      padding:4px 10px; border-radius:20px;
+      padding:3px 8px; border-radius:20px;
       border:1px solid var(--border3); color:var(--muted);
-      letter-spacing:.06em; transition:all .2s;
+      letter-spacing:.04em; transition:all .2s;
+      flex-shrink:0; white-space:nowrap;  /* never wrap to second line */
     }
     .cpill.ok { border-color:var(--green); color:var(--green); }
 
@@ -180,25 +181,34 @@
     .irow-v { font-family:var(--mono); font-size:11px; text-align:right; word-break:break-all; overflow-wrap:anywhere; color:var(--txt); min-width:0; }
 
     /* ── CONTROLLER TABLE ────────────────────────────────────────────── */
-    /* table-layout:fixed + <colgroup> in JS HTML: <col> width takes absolute priority,
-       th text cannot inflate columns regardless of content length */
+    /* table-layout:fixed: <col> widths are authoritative. th text cannot inflate columns.
+       Column budget (narrow mobile ~320px usable):
+         #(22) + TYP(26) + ADDR(auto) + 🔏(50) + 🗣️(24) + ACTION(76) = 198px fixed, rest = ADDR */
     .ctrl-table { width:100%; border-collapse:collapse; font-size:12px; margin-top:10px; table-layout:fixed; }
-    .ctrl-table col.col-idx    { width:32px; }
-    .ctrl-table col.col-type   { width:36px; }   /* wider + right padding gives breathing room before address */
-    .ctrl-table col.col-perm   { width:56px; }
-    .ctrl-table col.col-action { width:86px; }
+    .ctrl-table col.col-idx    { width:22px; }
+    .ctrl-table col.col-type   { width:26px; }
+    /* address col has no explicit width — takes all remaining space */
+    .ctrl-table col.col-perm   { width:50px; }
+    .ctrl-table col.col-acl    { width:24px; }
+    .ctrl-table col.col-action { width:76px; }
     .ctrl-table th {
       font-family:var(--mono); font-size:10px; font-weight:600;
-      letter-spacing:.06em; color:var(--muted); text-transform:uppercase;
-      text-align:left; padding:5px 4px 5px 0; border-bottom:1px solid var(--border2);
+      letter-spacing:.04em; color:var(--muted); text-transform:uppercase;
+      text-align:left; padding:5px 3px 5px 0; border-bottom:1px solid var(--border2);
       overflow:hidden;
     }
-    .ctrl-table td { padding:7px 4px 7px 0; border-bottom:1px solid var(--border); vertical-align:middle; overflow:hidden; }
-    .ctrl-table td:nth-child(2) { padding-right:8px; }  /* TYPE col: extra right gap before address */
+    /* Per-column th alignment — set here not inline to avoid specificity fights */
+    .ctrl-table th.th-center { text-align:center; }
+    .ctrl-table th.th-right  { text-align:right; }
+    .ctrl-table td { padding:6px 3px 6px 0; border-bottom:1px solid var(--border); vertical-align:middle; overflow:hidden; }
+    .ctrl-table td:nth-child(2) { padding-right:6px; }  /* TYPE: breathing room before address */
     .ctrl-table tr:last-child td { border:none; }
-    .ctrl-table .col-action { text-align:right; }
+    /* Perm td: allow text to show fully — overflow:visible so shortHex isn't clipped */
+    .ctrl-table td.td-perm  { overflow:visible; white-space:nowrap; text-align:center; }
+    .ctrl-table td.td-acl   { text-align:center; }
+    .ctrl-table td.td-action { text-align:right; }
     .ctrl-addr { font-family:var(--mono); font-size:10px; word-break:break-all; overflow-wrap:anywhere; color:var(--sub); }
-    .ctrl-perm { font-family:var(--mono); font-size:10px; color:var(--muted); white-space:nowrap; }
+    .ctrl-perm { font-family:var(--mono); font-size:10px; color:var(--muted); }
     .ctrl-type { font-size:13px; line-height:1; cursor:default; }
 
     .badge {
@@ -830,11 +840,13 @@ function apIdxKey(index) { return '0x' + AP_IDX_PFX + index.toString(16).padStar
 // AddressPermissions:Permissions:<addr> = 0x + AP_PERM_PFX(12B) + addr(20B)
 function apPermKey(addr)  { return '0x' + AP_PERM_PFX + addr.slice(2).toLowerCase() }
 
-// AddressPermissions:AllowedCalls:<addr> = 0x + 4b80742de2bf82acb3630000(12B) + addr(20B)
-function apAllowedCallsKey(addr) { return '0x4b80742de2bf82acb3630000' + addr.slice(2).toLowerCase() }
+// AddressPermissions:AllowedCalls:<addr>
+// Source: LSP6Constants.sol _LSP6KEY_ADDRESSPERMISSIONS_ALLOWEDCALLS_PREFIX = 0x4b80742de2bf393a64c7
+function apAllowedCallsKey(addr) { return '0x4b80742de2bf393a64c70000' + addr.slice(2).toLowerCase() }
 
-// AddressPermissions:AllowedERC725YDataKeys:<addr> = 0x + 4b80742de2bf82acb3630001(12B) + addr(20B)
-function apAllowedDataKeysKey(addr) { return '0x4b80742de2bf82acb3630001' + addr.slice(2).toLowerCase() }
+// AddressPermissions:AllowedERC725YDataKeys:<addr>
+// Source: LSP6Constants.sol _LSP6KEY_ADDRESSPERMISSIONS_AllowedERC725YDataKeys_PREFIX = 0x4b80742de2bf866c2911
+function apAllowedDataKeysKey(addr) { return '0x4b80742de2bf866c29110000' + addr.slice(2).toLowerCase() }
 
 // Encode uint128 as 16 bytes for array length
 function encLen(n)  { return '0x' + n.toString(16).padStart(32, '0') }
@@ -1073,30 +1085,34 @@ window.loadControllers = async function() {
     const permKeys = valid.map(e => apPermKey(e.addr))
     const rawPerms = await up1.getDataBatch(permKeys)
 
-    // Read AllowedCalls and AllowedERC725YDataKeys for each address
-    const allowedCallsKeys = valid.map(e => apAllowedCallsKey(e.addr))
-    const allowedCallsRaw = await up1.getDataBatch(allowedCallsKeys)
+    // Read AllowedCalls and AllowedERC725YDataKeys
+    // These are CompactBytesArray (LSP-2): 0x = unset = no restriction; non-empty = restricted
+    const allowedCallsKeys    = valid.map(e => apAllowedCallsKey(e.addr))
     const allowedDataKeysKeys = valid.map(e => apAllowedDataKeysKey(e.addr))
-    const allowedDataKeysRaw = await up1.getDataBatch(allowedDataKeysKeys)
-
-    // Check if a value is an empty array (LSP-2: 32 bytes of zeros = empty array)
-    function isEmptyArray(raw) {
-      if (!raw || raw === '0x' || raw === '0x0') return true
-      // Empty array = 32 bytes of zeros (66 hex chars: '0x' + 64 zeros)
-      if (raw.length === 66 && raw === '0x' + '0'.repeat(64)) return true
-      return false
+    const [allowedCallsRaw, allowedDataKeysRaw] = await Promise.all([
+      up1.getDataBatch(allowedCallsKeys),
+      up1.getDataBatch(allowedDataKeysKeys),
+    ])
+    // Unset = absent from storage (0x) or all zeros.
+    // getDataBatch in ethers v5 can return '0x', null, undefined, or '0x00...00'
+    // for unset CompactBytesArray keys. Treat all of these as "no restriction".
+    function isUnset(raw) {
+      if (raw == null) return true
+      if (typeof raw !== 'string') return true
+      const hex = raw.startsWith('0x') || raw.startsWith('0X') ? raw.slice(2) : raw
+      return hex.length === 0 || /^0*$/.test(hex)
     }
 
     S.controllers = valid.map((e, i) => ({
-      address:           e.addr,
-      arrayIndex:        e.index,
-      permHex:           rawPerms[i] || '0x',
-      permBig:           parseBig(rawPerms[i]),
-      isLSP11:           false,   // filled below — genuine LSP-11 confirmed by target()
-      isLSP0:            false,   // filled below
-      isEOA:             false,   // filled below
-      hasAllowedCalls:   !isEmptyArray(allowedCallsRaw[i]),
-      hasAllowedDataKeys: !isEmptyArray(allowedDataKeysRaw[i]),
+      address:             e.addr,
+      arrayIndex:          e.index,
+      permHex:             rawPerms[i] || '0x',
+      permBig:             parseBig(rawPerms[i]),
+      isLSP11:             false,   // filled below — genuine LSP-11 confirmed by target()
+      isLSP0:              false,   // filled below
+      isEOA:               false,   // filled below
+      hasAllowedCalls:     !isUnset(allowedCallsRaw[i]),
+      hasAllowedDataKeys:  !isUnset(allowedDataKeysRaw[i]),
     }))
 
     // Detect contract types for non-KM entries.
@@ -1138,10 +1154,16 @@ window.loadControllers = async function() {
         <col class="col-type">
         <col><!-- address: takes remaining width -->
         <col class="col-perm">
+        <col class="col-acl">
         <col class="col-action">
       </colgroup>
       <thead><tr>
-        <th>#</th><th>Type</th><th>Address</th><th>Perm</th><th></th>
+        <th>#</th>
+        <th title="Controller type">TYP</th>
+        <th>ADDR</th>
+        <th class="th-center" title="Permission bitmap">🔏</th>
+        <th class="th-center" title="AllowedCalls / AllowedERC725YDataKeys restrictions">🗣️</th>
+        <th class="th-right"></th>
       </tr></thead><tbody>`
     S.controllers.forEach(c => {
       const isKM     = c.address.toLowerCase() === S.thisKM?.toLowerCase()
@@ -1175,37 +1197,59 @@ window.loadControllers = async function() {
       }
 
       // ── Delete button ─────────────────────────────────────────────────────────
-      // Rule: EOA only. Any contract (KM, LSP-11, LSP-0, unknown) → disabled.
-      // Allowed:   EOA, UP (LSP-0) — user-identity types with legitimate swap use cases
-      // Disabled:  KM, confirmed LSP-11, unknown contracts, controllers with AllowedCalls/DataKeys
-      const isUnknownContract = !c.isEOA && !c.isLSP0 && !isKM
-      const hasRestrictions = c.hasAllowedCalls || c.hasAllowedDataKeys
+      // Unknown = not EOA, not LSP-0, not KM, not confirmed LSP-11
+      const isUnknownContract = !c.isEOA && !c.isLSP0 && !isKM && !c.isLSP11
+      const hasRestrictions   = c.hasAllowedCalls || c.hasAllowedDataKeys
+      // Disabled: KM, LSP-11, unknown contracts (regardless of restrictions),
+      //           and known types (EOA/UP) that have AllowedCalls/DataKeys set
       const delDisabled = isKM || c.isLSP11 || isUnknownContract || hasRestrictions
-      const delTip = hasRestrictions
-        ? `⚠️ This controller has AllowedCalls/AllowedDataKeys restrictions.\nClear them manually via LUKSO Extension or Blockscout before removal.`
-        : isKM
-          ? 'Key Manager — cannot be removed'
-          : c.isLSP11
-            ? 'LSP-11 Social Recovery — deletion disabled to protect account recovery'
-            : isUnknownContract
-              ? 'Unknown contract — deletion disabled (role unclear; use Blockscout → Write Contract if intentional)'
-              : c.isLSP0
-                ? `Remove UP guardian [${c.arrayIndex}] — this UP will lose access to this profile`
-                : `Remove EOA controller [${c.arrayIndex}]`
+      // Build tip: type-based reason takes priority over restriction reason
+      // so the user always sees WHY this type is blocked before seeing additional info
+      let delTip
+      if (isKM) {
+        delTip = 'Key Manager — cannot be removed'
+      } else if (c.isLSP11) {
+        delTip = 'LSP-11 Social Recovery — deletion disabled to protect account recovery'
+      } else if (isUnknownContract) {
+        delTip = hasRestrictions
+          ? 'Unknown contract with restrictions — use Blockscout to clear restrictions and remove'
+          : 'Unknown contract — use Blockscout → Write Contract if intentional'
+      } else if (hasRestrictions) {
+        const rList = [c.hasAllowedCalls && 'AllowedCalls', c.hasAllowedDataKeys && 'AllowedERC725YDataKeys'].filter(Boolean).join(' + ')
+        delTip = c.isLSP0
+          ? `UP has ${rList} restrictions — clear them manually before removal`
+          : `EOA has ${rList} restrictions — clear them manually before removal`
+      } else {
+        delTip = c.isLSP0
+          ? `Remove UP guardian [${c.arrayIndex}] — this UP will lose access to this profile`
+          : `Remove EOA controller [${c.arrayIndex}]`
+      }
       const delBtn = delDisabled
         ? `<span class="del-btn-off" title="${delTip}">🗑️\uFE0F</span>`
         : `<button class="del-btn" onclick="startDelete(${c.arrayIndex})" title="${delTip}">🗑️\uFE0F</button>`
+
+      // AllowedCalls / AllowedERC725YDataKeys cell
+      let aclTitle, aclDisplay
+      if (!c.hasAllowedCalls && !c.hasAllowedDataKeys) {
+        aclDisplay = '<span style="color:var(--muted);font-size:11px;">—</span>'
+        aclTitle   = 'No AllowedCalls or AllowedERC725YDataKeys restrictions'
+      } else {
+        const parts = [c.hasAllowedCalls && 'AllowedCalls', c.hasAllowedDataKeys && 'AllowedERC725YDataKeys'].filter(Boolean)
+        aclDisplay = '✅'
+        aclTitle   = parts.join(' + ') + ' restriction(s) set'
+      }
 
       html += `<tr${rowCls}>
         <td class="ctrl-perm">[${c.arrayIndex}]</td>
         <td><span class="ctrl-type" title="${typeTip}">${typeIcon}</span></td>
         <td class="ctrl-addr">${c.address}</td>
-        <td class="ctrl-perm" title="${encPerm(c.permBig)}">${shortHex(c.permHex)}</td>
-        <td style="text-align:right;">
+        <td class="td-perm ctrl-perm" title="${encPerm(c.permBig)}">${shortHex(c.permHex)}</td>
+        <td class="td-acl" style="font-size:13px;" title="${aclTitle}">${aclDisplay}</td>
+        <td class="td-action">
           <div style="display:inline-flex;align-items:center;gap:3px;">
-            ${isKM    ? '<span class="badge km"       title="Key Manager — full unrestricted owner access">KM</span>'                            : ''}
-            ${c.isLSP11 ? '<span class="badge recovery" title="LSP-11 Social Recovery (supportsInterface + target() verified)">RECOVERY</span>' : ''}
-            ${isAdmin ? '<span class="badge admin"    title="Has CHANGEOWNER, ADDCONTROLLER, and/or EDITPERMISSIONS">ADMIN</span>'               : ''}
+            ${isKM    ? '<span class="badge km"       title="Key Manager — full unrestricted owner access">KM</span>'      : ''}
+            ${c.isLSP11 ? '<span class="badge recovery" title="LSP-11 Social Recovery (verified)">RECV</span>'             : ''}
+            ${isAdmin ? '<span class="badge admin"    title="Has CHANGEOWNER, ADDCONTROLLER, and/or EDITPERMISSIONS">ADMIN</span>' : ''}
             ${delBtn}
           </div>
         </td></tr>`
@@ -1706,22 +1750,25 @@ window.startDelete = function(arrayIndex) {
     return
   }
 
+  // Guard: controllers with AllowedCalls or AllowedERC725YDataKeys cannot be removed here.
+  // These restrictions would be left as orphaned on-chain data if the controller is removed.
+  // User must clear them manually via LUKSO Extension or Blockscout first.
+  if (ctrl.hasAllowedCalls || ctrl.hasAllowedDataKeys) {
+    const r = [ctrl.hasAllowedCalls && 'AllowedCalls', ctrl.hasAllowedDataKeys && 'AllowedERC725YDataKeys'].filter(Boolean)
+    alert(`This controller has ${r.join(' and ')} restrictions.
+
+These will NOT be removed automatically and would remain as orphaned data.
+
+Please clear them via LUKSO Extension or Blockscout before removal.`)
+    return
+  }
+
   // Guard: cannot remove self (the currently connected UP)
   // Note: this tool's add flow prevents adding thisProfile as a controller,
   // so this guard primarily catches controllers added by other tools.
   const signer = S.accounts[0]
   if (signer && ctrl.address.toLowerCase() === signer.toLowerCase()) {
     alert('You cannot remove the currently connected address — this would lock you out.')
-    return
-  }
-
-  // Guard: cannot remove controllers with AllowedCalls/AllowedDataKeys restrictions
-  // These restrictions would be left orphaned if the controller is removed
-  if (ctrl.hasAllowedCalls || ctrl.hasAllowedDataKeys) {
-    const restrictions = []
-    if (ctrl.hasAllowedCalls) restrictions.push('AllowedCalls')
-    if (ctrl.hasAllowedDataKeys) restrictions.push('AllowedERC725YDataKeys')
-    alert(`⚠️ This controller has restrictions that must be cleared first:\n\n${restrictions.join(' and ')}\n\nThese will NOT be automatically removed and may cause issues if re-added later.\n\nPlease clear them manually via LUKSO Extension or Blockscout before removal.`)
     return
   }
 
@@ -1738,18 +1785,6 @@ window.startDelete = function(arrayIndex) {
   const hasEdit = (ctrl.permBig & PERM.EDITPERMISSIONS) !== 0n
 
   const warns = []
-
-  // Double-check for restrictions (should already be blocked above, but warn in modal too)
-  if (ctrl.hasAllowedCalls || ctrl.hasAllowedDataKeys) {
-    const restrictions = []
-    if (ctrl.hasAllowedCalls) restrictions.push('<code>AllowedCalls</code>')
-    if (ctrl.hasAllowedDataKeys) restrictions.push('<code>AllowedERC725YDataKeys</code>')
-    warns.push(`🔴 <strong>CRITICAL — Restrictions detected:</strong><br>
-      This controller has ${restrictions.join(' and ')} set.<br>
-      These will <strong>NOT</strong> be automatically removed and will remain as orphaned data on-chain.<br>
-      If this address is re-added as a controller later, these old restrictions may cause unexpected behavior.<br><br>
-      <strong>Recommended:</strong> Clear restrictions manually before removal.`)
-  }
 
   if (ctrl.isLSP0) {
     warns.push(`⚠️ <strong>This is a Universal Profile (LSP-0).</strong><br>

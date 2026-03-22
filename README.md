@@ -1,10 +1,10 @@
-# UniversalProfile Controller Manager
+# 🆙 Controller Manager
 
 **LSP-6 KeyManager Guardian Management UI for Universal Profiles**
 
 A secure web interface for managing Universal Profile controllers on LUKSO. Runs exclusively inside **universaleverything.io Grid**.
 
-🌐 **Access**: [universaleverything.io Grid](https://universaleverything.io) → Search for this app
+🌐 **Access**: [universaleverything.io](https://universaleverything.io) → Connect your UP → Open this app
 
 ---
 
@@ -54,7 +54,7 @@ This is a **controller management tool** — you're granting access to your Univ
 - **Risk Analysis** — Clear warnings for dangerous permissions (REENTRANCY, DELEGATECALL, SUPER_DELEGATECALL)
 - **LSP-11 Protection** — Confirmed social recovery contracts cannot be accidentally removed
 - **AllowedCalls Protection** — Controllers with restrictions cannot be removed (prevents orphaned data)
-- **Calldata Transparency** — Full calldata preview before signing
+- **Calldata Transparency** — Full calldata preview before signing (relayer + direct modes)
 
 ### Preset Permissions
 | Preset | Use Case | Permissions |
@@ -69,7 +69,7 @@ This is a **controller management tool** — you're granting access to your Univ
 - **Responsive Design** — Works on desktop and mobile within Grid
 - **One-Click Presets** — Select preset or toggle individual bits
 - **Bitmap Editor** — Manual hex input with validation (0x + 64 chars)
-- **Explorer Links** — Direct links to Blockscout and erc725-inspect
+- **Explorer Links** — Direct links to Blockscout and erc725-inspect for each controller
 
 ---
 
@@ -83,14 +83,14 @@ This is a **controller management tool** — you're granting access to your Univ
 ### How to Access
 1. Go to [universaleverything.io](https://universaleverything.io)
 2. Connect your Universal Profile
-3. Open Grid and search for "Controller Manager"
-4. Connect to the app
+3. Open the app from your Grid
 
 ### How to Use
-1. Connect your Universal Profile within Grid
-2. Enter a guardian UP address to add as controller
-3. Select a permission preset or customize bits
-4. Review calldata and sign transaction
+1. **Connect** — Your UP connects automatically via Grid
+2. **View Controllers** — See all registered controllers with type badges (KM, RECOVERY, UP, EOA)
+3. **Add Guardian** — Enter a guardian UP address and select permissions
+4. **Review** — Check calldata preview before signing
+5. **Sign** — Execute via UP Extension (relayer or direct mode)
 
 ---
 
