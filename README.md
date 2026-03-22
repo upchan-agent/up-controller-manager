@@ -54,6 +54,7 @@ This is a **controller management tool** — you're granting access to your Univ
 - **Deadlock Prevention** — Warns if removal would leave no admin-capable controllers
 - **Risk Analysis** — Clear warnings for dangerous permissions (REENTRANCY, DELEGATECALL, SUPER_DELEGATECALL)
 - **LSP-11 Protection** — Confirmed social recovery contracts cannot be accidentally removed
+- **AllowedCalls Protection** — Controllers with AllowedCalls/AllowedDataKeys restrictions cannot be removed (prevents orphaned data)
 - **Calldata Transparency** — Full calldata preview before signing (relayer + direct modes)
 
 ### Preset Permissions
@@ -87,8 +88,8 @@ This is a **controller management tool** — you're granting access to your Univ
 4. Select a permission preset or customize bits
 5. Review calldata and sign transaction
 
-### Deployment
-The app is deployed on Vercel: [up-controller-manager.vercel.app](https://up-controller-manager.vercel.app)
+### Live Demo
+🌐 **universaleverything.io Grid**: [Link in GitHub About](https://github.com/upchan-agent/up-controller-manager)
 
 ---
 
@@ -108,6 +109,7 @@ index.html
 ├── LSP-3 Profile metadata fetching (IPFS resolution)
 ├── Controller list rendering (with type detection)
 ├── Permission bit UI (23 bits with tooltips)
+├── AllowedCalls/AllowedDataKeys detection (LSP-2 compliance)
 ├── Calldata builder (setDataBatch encoding)
 └── Transaction execution (relayer + direct modes)
 ```
@@ -169,8 +171,44 @@ The tool prevents permission changes that would:
 - Leave zero controllers with `EDITPERMISSIONS` permission
 - Remove the last admin-capable controller
 
+### AllowedCalls Protection
+**Controllers with AllowedCalls or AllowedERC725YDataKeys restrictions cannot be removed via this tool.**
+
+This is a **fail-safe design** to prevent:
+1. **Orphaned data** — Restrictions left on-chain after controller removal
+2. **Future conflicts** — Old restrictions affecting re-added controllers
+3. **Data inconsistency** — Mismatch between AddressPermissions[] and restriction keys
+
+**To remove such controllers:**
+1. Clear restrictions manually via LUKSO Extension or Blockscout
+2. Then use this tool to remove the controller
+
 ### LSP-11 Social Recovery Protection
 Confirmed LSP-11 recovery contracts cannot be removed via this UI to prevent accidental loss of account recovery capability. Use Blockscout → Write Contract for intentional removal.
+
+---
+
+## ⚠️ Known Limitations
+
+### AllowedCalls Configuration (Not Yet Implemented)
+
+This tool currently **does not support setting** `AddressPermissions:AllowedCalls:<address>` or `AddressPermissions:AllowedERC725YDataKeys:<address>`.
+
+**Impact:**
+- `TRANSFERVALUE` permission without AllowedCalls = LYX transfers blocked by KeyManager
+- `CALL` permission without AllowedCalls = contract calls blocked by KeyManager
+- `SUPER_CALL` and `SUPER_SETDATA` are unrestricted (high risk)
+
+**Current Behavior:**
+- AI-Wallet preset grants `TRANSFERVALUE` + `SUPER_CALL`
+- Without AllowedCalls, `TRANSFERVALUE` is effectively blocked
+- `SUPER_CALL` allows unrestricted contract calls (use with caution)
+
+**Workaround:**
+Use LUKSO Extension or erc725-inspect to set AllowedCalls manually after adding a guardian.
+
+**Future Work:**
+AllowedCalls configuration UI is planned for a future release.
 
 ---
 
@@ -185,32 +223,12 @@ npx serve .
 open index.html
 ```
 
-### Vercel Deployment
-```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy
-vercel --prod
-```
-
-### Synthesis Submission
-```bash
-# Submit to Synthesis Hackathon
-node submit-to-synthesis.js ./conversation-log.json
-
-# Or without conversation log (uses default text)
-node submit-to-synthesis.js
-```
-
 ### Git Workflow
 ```bash
 # Commit changes
 git add .
 git commit -m "feat: description"
 git push origin main
-
-# Vercel auto-deploys on push
 ```
 
 ---
@@ -234,7 +252,13 @@ git push origin main
 
 ### Removing a Controller
 1. User clicks delete button on controller row
-2. Tool checks safety conditions (not KM, not self, no deadlock)
+2. Tool checks safety conditions:
+   - Not Key Manager address
+   - Not LSP-11 Social Recovery contract
+   - Not unknown contract
+   - **No AllowedCalls/AllowedDataKeys restrictions**
+   - Not self (connected UP)
+   - No deadlock risk
 3. Modal shows strategy (direct removal or swap-and-pop)
 4. User confirms and signs
 5. Tool executes:
@@ -265,6 +289,8 @@ git push origin main
 
 **Transparency builds trust.** Full calldata preview, explorer links, and clear risk warnings empower users to make informed decisions.
 
+**Fail-safe over convenience.** Blocking removal of controllers with restrictions prevents orphaned data, even if it requires extra steps.
+
 ---
 
 ## 🏆 Synthesis Hackathon
@@ -290,10 +316,10 @@ MIT License — see LICENSE file.
 ## 🔗 Links
 
 - **GitHub:** [github.com/upchan-agent/up-controller-manager](https://github.com/upchan-agent/up-controller-manager)
-- **Live Demo:** [up-controller-manager.vercel.app](https://up-controller-manager.vercel.app)
 - **LUKSO Docs:** [docs.lukso.tech](https://docs.lukso.tech)
 - **LSP-6 Spec:** [github.com/lukso-network/LIPs/blob/main/LSPs/LSP-6-KeyManager.md](https://github.com/lukso-network/LIPs/blob/main/LSPs/LSP-6-KeyManager.md)
 - **Blockscout:** [explorer.execution.mainnet.lukso.network](https://explorer.execution.mainnet.lukso.network)
+- **erc725-inspect:** [erc725-inspect.lukso.tech](https://erc725-inspect.lukso.tech)
 
 ---
 
