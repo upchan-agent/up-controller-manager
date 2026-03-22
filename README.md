@@ -2,7 +2,9 @@
 
 **LSP-6 KeyManager Guardian Management UI for Universal Profiles**
 
-A sleek, secure, and intuitive web interface for managing Universal Profile controllers on LUKSO. Built for the Synthesis Hackathon.
+A secure web interface for managing Universal Profile controllers on LUKSO. Runs exclusively inside **universaleverything.io Grid**.
+
+🌐 **Access**: [universaleverything.io Grid](https://universaleverything.io) → Search for this app
 
 ---
 
@@ -10,16 +12,14 @@ A sleek, secure, and intuitive web interface for managing Universal Profile cont
 
 **Problem:** Managing Universal Profile controllers is dangerous and opaque.
 
-- Existing tools require complex setups (Node.js, build steps, dependencies)
-- Users must trust pre-built binaries without seeing the code
+- Existing tools require complex setups or external extensions
 - Permission management is all-or-nothing — no fine-grained control
 - No visual feedback on what calldata is being signed
 - High risk of deadlock (locking yourself out) or over-permissioning
 
-**Solution:** A single HTML file you can audit yourself.
+**Solution:** A transparent, auditable controller management tool.
 
-- **Zero build steps** — open in browser, works instantly
-- **100% transparent** — every line of code is visible and verifiable
+- **100% transparent code** — single HTML file, no build process
 - **Official imports only** — `@lukso/up-provider` and `ethers.js` from CDN
 - **Fine-grained permissions** — 23 individual bits with risk analysis
 - **Deadlock detection** — warns before you lock yourself out
@@ -29,14 +29,13 @@ A sleek, secure, and intuitive web interface for managing Universal Profile cont
 
 ## 🔍 Key Differentiators
 
-### Single HTML, Direct Verification
-This is **not** a bundled, minified, build-step application. The entire tool lives in one `index.html` file:
+### Single HTML, Full Transparency
+This is **not** a bundled, minified application. The entire tool lives in one `index.html` file:
 
-- **No npm install** — no `node_modules`, no `package.json`, no dependency hell
 - **No build process** — what you see is what runs
-- **No hidden code** — 100% readable, auditable, modifiable
+- **No hidden code** — 100% readable and auditable
 - **Official imports only** — ethers.js and @lukso/up-provider from trusted CDNs
-- **Copy-paste verifiable** — save locally, open in browser, works offline
+- **Source-verifiable** — inspect every line on GitHub
 
 This is a **controller management tool** — you're granting access to your Universal Profile. You should be able to verify exactly what code you're running.
 
@@ -45,7 +44,7 @@ This is a **controller management tool** — you're granting access to your Univ
 ## 🌟 Features
 
 ### Core Functionality
-- **Add Guardian Controllers** — Grant another Universal Profile access to your profile as a backup controller
+- **Add Guardian Controllers** — Grant another Universal Profile access as a backup controller
 - **Permission Management** — Fine-grained control over 23 LSP-6 permission bits with preset templates
 - **Controller Removal** — Safe deletion with deadlock detection and swap-and-pop strategy
 - **Real-time Validation** — On-chain verification with ERC165 interface detection (LSP-0, LSP-11)
@@ -54,8 +53,8 @@ This is a **controller management tool** — you're granting access to your Univ
 - **Deadlock Prevention** — Warns if removal would leave no admin-capable controllers
 - **Risk Analysis** — Clear warnings for dangerous permissions (REENTRANCY, DELEGATECALL, SUPER_DELEGATECALL)
 - **LSP-11 Protection** — Confirmed social recovery contracts cannot be accidentally removed
-- **AllowedCalls Protection** — Controllers with AllowedCalls/AllowedDataKeys restrictions cannot be removed (prevents orphaned data)
-- **Calldata Transparency** — Full calldata preview before signing (relayer + direct modes)
+- **AllowedCalls Protection** — Controllers with restrictions cannot be removed (prevents orphaned data)
+- **Calldata Transparency** — Full calldata preview before signing
 
 ### Preset Permissions
 | Preset | Use Case | Permissions |
@@ -67,29 +66,31 @@ This is a **controller management tool** — you're granting access to your Univ
 
 ### UX Excellence
 - **Dark Mode UI** — Professional amber-gold + slate blue theme
-- **Responsive Design** — Works on desktop and mobile
+- **Responsive Design** — Works on desktop and mobile within Grid
 - **One-Click Presets** — Select preset or toggle individual bits
 - **Bitmap Editor** — Manual hex input with validation (0x + 64 chars)
 - **Explorer Links** — Direct links to Blockscout and erc725-inspect
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Usage
 
 ### Prerequisites
-- **UP Browser Extension** or **universaleverything.io Grid** for connection
+- **universaleverything.io Grid** account
 - Universal Profile on LUKSO Mainnet with controller permissions
 - Small amount of LYX for gas (if using direct mode)
 
-### Usage
-1. Open `index.html` in a browser with UP Extension installed
+### How to Access
+1. Go to [universaleverything.io](https://universaleverything.io)
 2. Connect your Universal Profile
-3. Enter a guardian UP address to add as controller
-4. Select a permission preset or customize bits
-5. Review calldata and sign transaction
+3. Open Grid and search for "Controller Manager"
+4. Connect to the app
 
-### Live Demo
-🌐 **universaleverything.io Grid**: [Link in GitHub About](https://github.com/upchan-agent/up-controller-manager)
+### How to Use
+1. Connect your Universal Profile within Grid
+2. Enter a guardian UP address to add as controller
+3. Select a permission preset or customize bits
+4. Review calldata and sign transaction
 
 ---
 
@@ -98,7 +99,7 @@ This is a **controller management tool** — you're granting access to your Univ
 ### Tech Stack
 - **Framework** — Vanilla HTML/CSS/JavaScript (no build step)
 - **Blockchain** — ethers.js 5.7.2
-- **Provider** — @lukso/up-provider 0.3.7
+- **Provider** — @lukso/up-provider 0.3.7 (injected by Grid)
 - **RPC** — LUKSO Mainnet (`https://rpc.mainnet.lukso.network`)
 - **Explorer** — Blockscout (`https://explorer.execution.mainnet.lukso.network`)
 
@@ -209,27 +210,6 @@ Use LUKSO Extension or erc725-inspect to set AllowedCalls manually after adding 
 
 **Future Work:**
 AllowedCalls configuration UI is planned for a future release.
-
----
-
-## 🛠️ Development
-
-### Local Testing
-```bash
-# Serve locally (any static server)
-npx serve .
-
-# Or open directly in browser
-open index.html
-```
-
-### Git Workflow
-```bash
-# Commit changes
-git add .
-git commit -m "feat: description"
-git push origin main
-```
 
 ---
 
